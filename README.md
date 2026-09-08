@@ -13,7 +13,7 @@ Reset Radar is an independent macOS menu bar app. It reads public announcements,
 
 ## Download
 
-[Download v1.1.1 DMG](https://github.com/ly918/reset-radar/releases/download/v1.1.1/Reset-Radar-1.1.1-macOS-arm64.dmg) · [SHA-256 checksum](https://github.com/ly918/reset-radar/releases/download/v1.1.1/Reset-Radar-1.1.1-macOS-arm64.dmg.sha256) · [Release notes](https://github.com/ly918/reset-radar/releases/tag/v1.1.1)
+[Download v1.1.2 DMG](https://github.com/ly918/reset-radar/releases/download/v1.1.2/Reset-Radar-1.1.2-macOS-arm64.dmg) · [SHA-256 checksum](https://github.com/ly918/reset-radar/releases/download/v1.1.2/Reset-Radar-1.1.2-macOS-arm64.dmg.sha256) · [Release notes](https://github.com/ly918/reset-radar/releases/tag/v1.1.2)
 
 Requires **Apple Silicon and macOS 14+**. Open the DMG, drag **Reset Radar.app** into **Applications**, then launch it and click its menu bar icon. Intel, Windows and iOS builds are not available.
 
@@ -109,3 +109,9 @@ docs/               Architecture, release notes, screenshots and branding
 ## License
 
 Original code, documentation and logo are available under the [MIT License](LICENSE). Third-party metadata and source content are described separately; MIT does not grant rights to third-party websites, posts or trademarks.
+
+### Keychain prompts
+
+Startup and automatic checks read credentials silently. If macOS requires authorization, AI requests pause and the panel shows **AI key needs authorization**; public posts and saved analysis remain available. Click **Authorize & assess** (or **Test connection** in Settings) when ready. After access is granted, the key is reused in memory for that app session.
+
+You can select **Always Allow** in macOS's prompt for this trusted app. The current release is ad-hoc signed, so replacing it with a new build can require authorization again. This fix suppresses unattended prompts; it does not remove Keychain access controls or save keys in plain text.

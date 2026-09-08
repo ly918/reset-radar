@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.2 — 2026-09-08
+
+- Stop startup and background checks from opening Keychain authorization prompts, including legacy login-keychain items.
+- Pause credential retries after authorization is required; explicit user actions can retry.
+- Reuse successfully saved keys in memory for the session. Preserve Keychain access controls and endpoint isolation.
+- Add silent-interaction restoration and isolated locked-keychain regression checks.
+
 ## 1.1.1 — 2026-09-08
 
 - English is the default interface language; Simplified Chinese can be selected in Settings → Language.

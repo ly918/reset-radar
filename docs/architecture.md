@@ -41,3 +41,9 @@ The macOS target packages `en.lproj` and `zh-Hans.lproj` string tables in its ow
 `LocalizedMessage` retains message keys and interpolation arguments, allowing pending request statuses to change language without reissuing requests. User posts and source evidence are not localization keys. New AI requests specify the explanation language; the legacy wire field `reason_zh` remains unchanged for provider/schema compatibility. Optional `reasonLanguage` metadata is backward compatible with cached results from v1.0.0. A language switch alone never invalidates probabilities or forces a paid request.
 
 `--check-native-window` also checks packaged catalogs, language persistence in an isolated preferences suite, fallback and interpolation. Preview rendering accepts `--preview-language en` or `--preview-language zh-Hans` without changing user preferences.
+
+## Keychain interaction policy (v1.1.2)
+
+All app-owned Keychain operations share a recursive lock. Silent reads combine `LAContext.interactionNotAllowed` with a scoped legacy `SecKeychainSetUserInteractionAllowed(false)` setting, restoring its previous value on success or error. The legacy API is intentionally retained for existing file-based login-keychain credentials; its deprecation warning is expected. No ACLs or signing requirements are changed. Startup never invokes an interactive authorization path, and an authorization failure latches background secret reads until an explicit retry or configuration change.
+
+Reference: [Apple: SecKeychainSetUserInteractionAllowed](https://developer.apple.com/documentation/security/seckeychainsetuserinteractionallowed(_:)) and the installed Security SDK's `SecItem.h` legacy-keychain UI limitation.

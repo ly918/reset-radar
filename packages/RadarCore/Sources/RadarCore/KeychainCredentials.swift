@@ -13,6 +13,25 @@ public struct KeychainFailure: Error, LocalizedError, Sendable {
     public var errorDescription: String? { "钥匙串操作未完成（\(status)）。请解锁本机钥匙串或检查系统授权后重试。" }
 }
 
+/// Legacy login-keychain items do not honor LAContext's UI policy. Serialize all
+/// app-owned operations while temporarily disabling legacy prompts for silent reads.
+/// This only suppresses UI: protected reads still fail until the user authorizes them.
+enum KeychainInteraction {
+    private static let lock = NSRecursiveLock()
+    static func perform<T>(allowInteraction: Bool, _ operation: () throws -> T) throws -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !allowInteraction else { return try operation() }
+        var previous: DarwinBoolean = false
+        let readStatus = SecKeychainGetUserInteractionAllowed(&previous)
+        guard readStatus == errSecSuccess else { throw KeychainFailure(status: readStatus) }
+        let setStatus = SecKeychainSetUserInteractionAllowed(false)
+        guard setStatus == errSecSuccess else { throw KeychainFailure(status: setStatus) }
+        defer { SecKeychainSetUserInteractionAllowed(previous.boolValue) }
+        return try operation()
+    }
+}
+
 /// Credentials are scoped to this app, device-only and never synchronizable.
 public struct KeychainCredentials: Sendable {
     private let namespace: String
@@ -29,13 +48,15 @@ public struct KeychainCredentials: Sendable {
               !cleaned.contains(where: { $0.isWhitespace || $0.isNewline }) else { throw ConnectionFailure(.invalidInput) }
         let attributes: [String: Any] = [kSecValueData as String: Data(cleaned.utf8),
                                         kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly]
-        let updated = SecItemUpdate(query(service) as CFDictionary, attributes as CFDictionary)
-        if updated == errSecItemNotFound {
-            let added = SecItemAdd(query(service).merging(attributes) { _, new in new } as CFDictionary, nil)
-            guard added == errSecSuccess else { throw KeychainFailure(status: added) }
-        } else if updated != errSecSuccess { throw KeychainFailure(status: updated) }
+        try KeychainInteraction.perform(allowInteraction: true) {
+            let updated = SecItemUpdate(query(service) as CFDictionary, attributes as CFDictionary)
+            if updated == errSecItemNotFound {
+                let added = SecItemAdd(query(service).merging(attributes) { _, new in new } as CFDictionary, nil)
+                guard added == errSecSuccess else { throw KeychainFailure(status: added) }
+            } else if updated != errSecSuccess { throw KeychainFailure(status: updated) }
+        }
     }
-    public func read(_ service: APIService, allowInteraction: Bool = true) throws -> String? {
+    public func read(_ service: APIService, allowInteraction: Bool = false) throws -> String? {
         var q = query(service)
         q[kSecReturnData as String] = true; q[kSecMatchLimit as String] = kSecMatchLimitOne
         if !allowInteraction {
@@ -43,7 +64,9 @@ public struct KeychainCredentials: Sendable {
             q[kSecUseAuthenticationContext as String] = context
         }
         var result: CFTypeRef?
-        let status = SecItemCopyMatching(q as CFDictionary, &result)
+        let status = try KeychainInteraction.perform(allowInteraction: allowInteraction) {
+            SecItemCopyMatching(q as CFDictionary, &result)
+        }
         if status == errSecItemNotFound { return nil }
         guard status == errSecSuccess else { throw KeychainFailure(status: status) }
         guard let data = result as? Data, let secret = String(data: data, encoding: .utf8) else { throw KeychainFailure(status: errSecDecode) }
@@ -54,13 +77,17 @@ public struct KeychainCredentials: Sendable {
         q[kSecReturnAttributes as String] = true; q[kSecMatchLimit as String] = kSecMatchLimitOne
         let context = LAContext(); context.interactionNotAllowed = true
         q[kSecUseAuthenticationContext as String] = context
-        let status = SecItemCopyMatching(q as CFDictionary, nil)
+        let status = try KeychainInteraction.perform(allowInteraction: false) {
+            SecItemCopyMatching(q as CFDictionary, nil)
+        }
         if status == errSecItemNotFound { return false }
         guard status == errSecSuccess else { throw KeychainFailure(status: status) }
         return true
     }
     public func delete(_ service: APIService) throws {
-        let status = SecItemDelete(query(service) as CFDictionary)
+        let status = try KeychainInteraction.perform(allowInteraction: true) {
+            SecItemDelete(query(service) as CFDictionary)
+        }
         guard status == errSecSuccess || status == errSecItemNotFound else { throw KeychainFailure(status: status) }
     }
 }

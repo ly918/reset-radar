@@ -64,6 +64,10 @@ import RadarCore
     private func readAISecret(allowInteraction: Bool) async throws -> String? {
         let endpoint = try APIEndpoint(baseURL).baseURL.absoluteString
         if let cached = sessionCredential, cached.endpoint == endpoint { return cached.secret }
+        // After a denial, background work waits for an explicit user retry.
+        guard allowInteraction || !credentialAccessRequired else {
+            throw KeychainFailure(status: -25308) // errSecInteractionNotAllowed
+        }
         let store = try credentials()
         let secret: String?
         do {
@@ -77,16 +81,6 @@ import RadarCore
         }
         if let secret { sessionCredential = (endpoint, secret) }
         return secret
-    }
-    func authorizeAndStartMonitoring(forceAnalysis: Bool = false) async {
-        guard !preview, !busyAI else { return }
-        busyAI = true
-        runtimeStatus = "等待系统钥匙串授权，公开帖子与已保存分析仍可查看"
-        do {
-            _ = try await readAISecret(allowInteraction: true)
-        } catch { aiStatus = safeMessage(error) }
-        busyAI = false
-        startMonitoring(forceAnalysis: forceAnalysis)
     }
     func startMonitoring(forceAnalysis: Bool = false) {
         guard !preview, monitorTask == nil else { return }
@@ -132,7 +126,7 @@ import RadarCore
             return row.contentHash != post.contentHash || row.model != model || row.baseURL != canonical ||
                 row.api != api.rawValue || row.promptVersion != LivePostAnalysis.currentPromptVersion
         }
-        if needsAnalysis && model != nil && ((try? credentials().contains(.openai)) ?? false) {
+        if needsAnalysis && model != nil && (allowCredentialInteraction || !credentialAccessRequired) {
             if let wait = gate.blockingFailure(ai: true, now: Date())?.retryAt {
                 runtimeStatus = "帖子已更新，等待 AI 请求间隔或每日额度"; return wait
             }
@@ -142,13 +136,15 @@ import RadarCore
         } else {
             runtimeStatus = needsAnalysis ? "网页已更新 · AI 配置待完成" : "真实数据运行中 · 相同正文复用已保存分析"
         }
-        if !posts.isEmpty && currentProbability(asOf: Date()) == nil && model != nil {
+        if !posts.isEmpty && currentProbability(asOf: Date()) == nil && model != nil &&
+            (allowCredentialInteraction || !credentialAccessRequired) {
             if let wait = gate.blockingFailure(ai: true, now: Date())?.retryAt {
                 probabilityStatus = "等待共享请求间隔后计算 AI 概率"; runtimeStatus = probabilityStatus; return wait
             }
             await predictProbability(allowCredentialInteraction: allowCredentialInteraction)
             runtimeStatus = probabilityStatus
         }
+        if credentialAccessRequired { runtimeStatus = "AI 密钥需要授权" }
         do {
             let forecast = historicalForecast
             let reference = referenceForecast(asOf: Date())
@@ -260,6 +256,7 @@ import RadarCore
     }
     func configurationChanged() {
         sessionCredential = nil
+        credentialAccessRequired = false
         savedAI = false; aiStatus = "配置已修改 · 需保存并重新测试"
         refreshCredentialStatus()
     }
@@ -281,7 +278,12 @@ import RadarCore
         do {
             _ = try validModel()
             let store = try credentials()
-            if !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { try store.save(value, for: .openai); sessionCredential = nil }
+            let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !cleaned.isEmpty {
+                try store.save(cleaned, for: .openai)
+                sessionCredential = (try APIEndpoint(baseURL).baseURL.absoluteString, cleaned)
+                credentialAccessRequired = false
+            }
             guard try store.contains(.openai) else { aiStatus = "请填写此服务的 API Key"; return false }
             try persistConfiguration()
             savedAI = true; aiStatus = "配置已保存，Key 位于本机钥匙串 · 尚未测试"
@@ -290,7 +292,7 @@ import RadarCore
     }
     func deleteAI() {
         guard !preview, !busyAI else { return }
-        do { try credentials().delete(.openai); sessionCredential = nil; savedAI = false; aiStatus = "此地址的密钥已从钥匙串删除" }
+        do { try credentials().delete(.openai); sessionCredential = nil; credentialAccessRequired = false; savedAI = false; aiStatus = "此地址的密钥已从钥匙串删除" }
         catch { aiStatus = safeMessage(error) }
     }
     private func validModel() throws -> String {

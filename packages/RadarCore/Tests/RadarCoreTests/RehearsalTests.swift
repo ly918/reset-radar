@@ -221,7 +221,7 @@ func expect(_ result: Bool, file: StaticString = #file, line: UInt = #line) {
 }
 @main struct RehearsalRunner {
     static func main() async throws {
-        if CommandLine.arguments.contains("--check-keychain") { try isolatedKeychainRoundTrip(); return }
+        if CommandLine.arguments.contains("--check-keychain") { try lockedSyntheticKeychainRead(); try isolatedKeychainRoundTrip(); return }
         if CommandLine.arguments.contains("--probe-web") {
             let client = ConnectionClient()
             let first = try await client.fetchWeb()
@@ -233,6 +233,7 @@ func expect(_ result: Bool, file: StaticString = #file, line: UInt = #line) {
             return
         }
         let cases: [(String, () throws -> Void)] = [
+            ("silent Keychain policy and restoration after errors", keychainInteractionPolicy),
             ("unknown gates", unknownGates),
             ("analytical vector and fractional bin", fixedAnalyticalVectorAndFractionalBin),
             ("monotonicity, caps and mass conservation", monotonicityCapsAndMassConservation),
@@ -264,6 +265,6 @@ func expect(_ result: Bool, file: StaticString = #file, line: UInt = #line) {
         try communityHistoryImportAndPredictionGates(); print("PASS: public archive metadata import and prediction gates")
         try announcedPlanTimezoneAndPriority(); print("PASS: announced plan timezone, publication day, expiry and evidence eligibility")
         try await directProbabilityDataAndValidation(); print("PASS: direct model probability unchanged, source validation, horizons and cache invalidation")
-        print("ALL 29 CHECK GROUPS PASSED; synthetic API inputs and public history metadata snapshot")
+        print("ALL 30 CHECK GROUPS PASSED; synthetic API inputs and public history metadata snapshot")
     }
 }

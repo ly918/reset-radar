@@ -43,12 +43,12 @@ Reset Radar 是一个独立的 macOS 菜单栏应用：读取公开公告，调�
 
 | 平台 | 当前状态 |
 | --- | --- |
-| macOS · Apple Silicon | 提供 v1.1.1 `.dmg`；要求 macOS 14+，已在 macOS 26 验证 |
+| macOS · Apple Silicon | 提供 v1.1.2 `.dmg`；要求 macOS 14+，已在 macOS 26 验证 |
 | macOS · Intel | 尚未构建或验证，不提供 Intel 下载包 |
 | Windows | 尚无客户端或 EXE 安装包 |
 | iOS | 尚无客户端 |
 
-[下载 v1.1.1 DMG](https://github.com/ly918/reset-radar/releases/download/v1.1.1/Reset-Radar-1.1.1-macOS-arm64.dmg) · [SHA-256 校验文件](https://github.com/ly918/reset-radar/releases/download/v1.1.1/Reset-Radar-1.1.1-macOS-arm64.dmg.sha256) · [Release 说明](https://github.com/ly918/reset-radar/releases/tag/v1.1.1)
+[下载 v1.1.2 DMG](https://github.com/ly918/reset-radar/releases/download/v1.1.2/Reset-Radar-1.1.2-macOS-arm64.dmg) · [SHA-256 校验文件](https://github.com/ly918/reset-radar/releases/download/v1.1.2/Reset-Radar-1.1.2-macOS-arm64.dmg.sha256) · [Release 说明](https://github.com/ly918/reset-radar/releases/tag/v1.1.2)
 
 DMG 安装：打开镜像，将 **Reset Radar.app** 拖入 **Applications**，再从“应用程序”启动。应用常驻屏幕顶部菜单栏，点击图标打开面板。
 
@@ -106,7 +106,7 @@ data/             社区事实元数据、出处与限制
 docs/brand/       Logo 与应用图标来源
 ```
 
-[架构说明](docs/architecture.md) · [贡献指南](CONTRIBUTING.md) · [变更记录](CHANGELOG.md) · [v1.1.1 发布说明](docs/releases/v1.1.1.md)
+[架构说明](docs/architecture.md) · [贡献指南](CONTRIBUTING.md) · [变更记录](CHANGELOG.md) · [v1.1.2 发布说明](docs/releases/v1.1.2.md)
 
 ## 路线图
 
@@ -118,3 +118,9 @@ docs/brand/       Logo 与应用图标来源
 ## 许可
 
 本项目原创代码、文档和 Logo 采用 [MIT License](LICENSE)。第三方事实元数据与其来源内容单独说明，MIT 不授予第三方网站、帖子或商标的权利。
+
+### 钥匙串弹窗
+
+启动和自动检查静默读取凭据。若 macOS 要求授权，AI 请求会暂停，面板显示“AI 密钥需要授权”；公开帖子和已保存分析仍可查看。准备好后点击“授权并评估”，或在设置中点击“测试连接”。成功读取的密钥仅在本次应用进程内复用。
+
+确认信任应用后，可在系统提示中选择“始终允许”。当前安装包使用临时签名，更新为新构建后可能仍需再次授权。本次修复避免后台主动弹窗，不会移除钥匙串访问控制或把密钥改存为明文。

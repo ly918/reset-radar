@@ -170,7 +170,7 @@ enum DemoScenario: String, CaseIterable, Identifiable {
             catch { fputs("::error::Native window validation failed: \(error.localizedDescription)\n", stderr); exit(1) }
         }
         if args.contains("--start-monitoring") {
-            Task { await connections.authorizeAndStartMonitoring(forceAnalysis: args.contains("--reanalyze-latest")) }
+            connections.startMonitoring(forceAnalysis: args.contains("--reanalyze-latest"))
         } else if UserDefaults.standard.bool(forKey: "connection.monitoring") {
             connections.startMonitoring()
         }

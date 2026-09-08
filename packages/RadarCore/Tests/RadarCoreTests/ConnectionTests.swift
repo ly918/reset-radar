@@ -1,5 +1,6 @@
 import Foundation
-import RadarCore
+@testable import RadarCore
+import Security
 
 func syntheticWeb(text: String = "Synthetic reset discussion. Quotes: \"test\", braces: {x}.", author: String = "123") -> String {
     let user = Data("User:123".utf8).base64EncodedString()
@@ -378,4 +379,56 @@ func communityHistoryImportAndPredictionGates() throws {
     _ = bundleData // JSONEncoder's date format differs; source decoding is tested by bundled().
     print("HISTORY: records=\(history.events.count), direct=\(resets.count), candidate gaps=\(history.candidateIntervals(asOf: now).count), publishable probability=false")
     print("COMMUNITY REFERENCE at snapshot +60s: \(reference.probability); strict forecast remains unavailable")
+}
+
+// No user credentials are read: these checks inspect this process's UI policy.
+func keychainInteractionPolicy() throws {
+    func policy() throws -> Bool {
+        var value: DarwinBoolean = false
+        let status = SecKeychainGetUserInteractionAllowed(&value)
+        guard status == errSecSuccess else { throw KeychainFailure(status: status) }
+        return value.boolValue
+    }
+    let original = try policy()
+    try KeychainInteraction.perform(allowInteraction: false) {
+        expect(try policy() == false)
+        try KeychainInteraction.perform(allowInteraction: false) { expect(try policy() == false) }
+        expect(try policy() == false)
+    }
+    expect(try policy() == original)
+    enum SyntheticFailure: Error { case denied }
+    do {
+        try KeychainInteraction.perform(allowInteraction: false) { throw SyntheticFailure.denied }
+        preconditionFailure("Expected the operation to fail")
+    } catch SyntheticFailure.denied {}
+    expect(try policy() == original)
+    try KeychainInteraction.perform(allowInteraction: true) { expect(try policy() == original) }
+    expect(try policy() == original)
+}
+
+func lockedSyntheticKeychainRead() throws {
+    let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let path = folder.appendingPathComponent("synthetic.keychain").path
+    var keychain: SecKeychain?
+    let password = "synthetic-test-only"
+    let created = password.withCString {
+        SecKeychainCreate(path, UInt32(password.utf8.count), $0, false, nil, &keychain)
+    }
+    guard created == errSecSuccess, let keychain else { throw KeychainFailure(status: created) }
+    defer { SecKeychainDelete(keychain) }
+    let attributes: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+        kSecUseKeychain as String: keychain, kSecAttrService as String: "synthetic",
+        kSecAttrAccount as String: "test", kSecValueData as String: Data("synthetic-value".utf8)]
+    expect(SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess)
+    expect(SecKeychainLock(keychain) == errSecSuccess)
+    let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+        kSecMatchSearchList as String: [keychain], kSecAttrService as String: "synthetic",
+        kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitOne]
+    let status = try KeychainInteraction.perform(allowInteraction: false) {
+        SecItemCopyMatching(query as CFDictionary, nil)
+    }
+    expect(KeychainFailure(status: status).requiresAuthorization)
+    print("PASS: locked isolated legacy Keychain fails silently; no user credentials accessed")
 }
