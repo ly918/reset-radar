@@ -6,6 +6,10 @@ public enum APIService: String, CaseIterable, Sendable { case openai, x }
 
 public struct KeychainFailure: Error, LocalizedError, Sendable {
     public let status: OSStatus
+    public init(status: OSStatus) { self.status = status }
+    public var requiresAuthorization: Bool {
+        [errSecAuthFailed, errSecInteractionNotAllowed, errSecUserCanceled].contains(status)
+    }
     public var errorDescription: String? { "钥匙串操作未完成（\(status)）。请解锁本机钥匙串或检查系统授权后重试。" }
 }
 

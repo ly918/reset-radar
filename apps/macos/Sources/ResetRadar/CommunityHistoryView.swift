@@ -99,9 +99,15 @@ struct CommunityHistorySummary: View {
 
 struct CommunityHistoryView: View {
     @ObservedObject var connections: ConnectionModel
+    @Environment(\.radarCloseWindow) private var closeWindow
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("历史 Reset").font(.title2.bold())
+            HStack {
+                Text("历史 Reset").font(.title2.bold())
+                Spacer()
+                Button("关闭", systemImage: "xmark.circle.fill") { closeWindow(id: "reset-history") }
+                    .buttonStyle(.plain).foregroundStyle(.secondary).help("关闭历史窗口（⌘W / Esc）")
+            }
             if let history = connections.history {
                 CommunityHistorySummary(history: history)
                 Text("来自公开 tracker 的归档，不来自本次帖子抓取。预告、credit 和定向补偿单独保留。")

@@ -122,6 +122,10 @@ func anonymousWebRequest() async throws {
 }
 
 func isolatedKeychainRoundTrip() throws {
+    expect(KeychainFailure(status: -25293).requiresAuthorization)
+    expect(KeychainFailure(status: -25308).requiresAuthorization)
+    expect(KeychainFailure(status: -128).requiresAuthorization)
+    expect(!KeychainFailure(status: -25300).requiresAuthorization)
     let keychain = KeychainCredentials(namespace: "local.resetradar.tests." + UUID().uuidString)
     defer { try? keychain.delete(.openai) }
     expect(try keychain.read(.openai) == nil)

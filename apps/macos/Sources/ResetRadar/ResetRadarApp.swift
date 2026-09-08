@@ -127,8 +127,10 @@ enum DemoScenario: String, CaseIterable, Identifiable {
                 let model = ConnectionModel()
                 _ = await model.runCycle(forceFetch: true, allowCredentialInteraction: true)
                 print(model.runtimeStatus)
-                print("REAL CYCLE: community records=\(model.history?.events.count ?? 0), analyses=\(model.analyses.count), probability available=\(model.historicalForecast?.available ?? false)")
-                exit(model.analyses.isEmpty ? 1 : 0)
+                let forecast = model.currentProbability(asOf: Date())
+                print("REAL CYCLE: community records=\(model.history?.events.count ?? 0), analyses=\(model.analyses.count), AI probability available=\(forecast != nil)")
+                if let forecast { print("AI 12/24/48: \(forecast.probabilities)") }
+                exit(forecast == nil ? 1 : 0)
             }
             return
         }

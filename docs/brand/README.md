@@ -1,9 +1,11 @@
 # Reset Radar Logo
 
-原创图形：以可按下的 RESET 按钮为主体，金色键面、较深的前沿和石墨灰底座体现按键层次。按键上的回转符号与自绘 RESET 字样表达重置，暖金色对应应用中 12h 概率的重点色。
+以金灿灿的拟物 RESET 按钮为主体：拉丝金属、高光倒角、立体侧壁、深灰底座与清晰的 RESET 刻字。
 
-- `logo.svg`：可编辑矢量版本。
-- `logo.png`：1024×1024 透明外边距版本，用于 README。
+- `logo.png`：由内置 image_gen 工具生成的最终位图，用于 README 和图标打包。
 - `apps/macos/Resources/AppIcon.icns`：完整 macOS 图标尺寸集。
+- `prompt.md`：生成方式与提示词记录。
 
-采用项目 MIT 许可。重新生成需 Python 3 + Pillow，以及 macOS 自带的 iconutil：`python3 scripts/generate-logo.py`。普通构建直接使用已提交的图标，不要求 Pillow。
+图标打包不重新生成图像，只转换尺寸与格式：`./scripts/package-icon.sh`。它仅需要 macOS 自带的 sips 和 iconutil；普通应用构建直接使用已提交的 icns 文件。
+
+项目资产随 MIT 许可提供；第三方商标不在授权范围内。

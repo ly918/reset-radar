@@ -13,6 +13,8 @@ import RadarCore
     @Published var analysisStatus = "尚未分析真实帖子"
     @Published var probabilityForecast: AIProbabilityForecast?
     @Published var probabilityStatus = "尚未请求 AI 概率预测"
+    @Published private(set) var credentialAccessRequired = false
+    @Published private(set) var probabilityRequestFailed = false
     @Published var aiStatus = "未配置"
     @Published var webStatus = "无需 X Token · 尚未抓取"
     @Published var busyAI = false
@@ -63,7 +65,16 @@ import RadarCore
         let endpoint = try APIEndpoint(baseURL).baseURL.absoluteString
         if let cached = sessionCredential, cached.endpoint == endpoint { return cached.secret }
         let store = try credentials()
-        let secret = try await Task.detached { try store.read(.openai, allowInteraction: allowInteraction) }.value
+        let secret: String?
+        do {
+            secret = try await Task.detached { try store.read(.openai, allowInteraction: allowInteraction) }.value
+            credentialAccessRequired = false
+        } catch {
+            if let failure = error as? KeychainFailure, failure.requiresAuthorization {
+                credentialAccessRequired = true
+            }
+            throw error
+        }
         if let secret { sessionCredential = (endpoint, secret) }
         return secret
     }
@@ -166,7 +177,30 @@ import RadarCore
                 "status": runtimeStatus, "system_notifications": false]
             try save(JSONSerialization.data(withJSONObject: report, options: .prettyPrinted), filename: "latest-runtime.json")
         } catch { runtimeStatus = "本轮数据已处理，但运行记录保存失败" }
-        return Date().addingTimeInterval(3600)
+        return nextAutomaticCheck(asOf: Date())
+    }
+    private func nextAutomaticCheck(asOf now: Date) -> Date {
+        // Wake at the prediction's expiry or announcement boundary, rather than
+        // an hour after the preceding network call finished.
+        guard !credentialAccessRequired else { return now.addingTimeInterval(3600) }
+        var deadlines = [now.addingTimeInterval(3600)]
+        if let value = currentProbability(asOf: now) {
+            deadlines.append(value.asOf.addingTimeInterval(3600))
+        }
+        if let plan = announcedPlan(asOf: now), plan.latest > now { deadlines.append(plan.latest) }
+        return max(now.addingTimeInterval(1), deadlines.min()!)
+    }
+    func probabilitySummary(asOf: Date) -> String {
+        if currentProbability(asOf: asOf) != nil { return "AI 估计 · 未校准" }
+        if busyAI { return "正在评估下一次 Reset…" }
+        if credentialAccessRequired { return "AI 密钥需要授权" }
+        if let failure = gate.blockingFailure(ai: true, now: asOf) {
+            if failure.issue == .dailyRequestLimit { return "今日 AI 额度已用完" }
+            return "等待 AI 请求间隔"
+        }
+        if probabilityRequestFailed { return "评估失败 · 查看详情" }
+        if probabilityForecast != nil { return "旧预测已过期，需重新评估" }
+        return "尚未评估下一次 Reset"
     }
     var historicalForecast: Forecast? { history?.forecast(asOf: Date()) }
     func currentProbability(asOf: Date) -> AIProbabilityForecast? {
@@ -179,7 +213,8 @@ import RadarCore
     }
     func predictProbability(allowCredentialInteraction: Bool = true) async {
         guard !preview, !busyAI, !busyWeb, let snapshot, !snapshot.posts.isEmpty else { return }
-        busyAI = true; defer { busyAI = false }
+        busyAI = true; probabilityRequestFailed = false
+        defer { busyAI = false }
         do {
             let model = try validModel()
             guard let secret = try await readAISecret(allowInteraction: allowCredentialInteraction) else {
@@ -193,7 +228,10 @@ import RadarCore
             try save(JSONEncoder().encode(result), filename: "ai-probability.json")
             probabilityForecast = result
             probabilityStatus = "AI 概率预测完成 · 数值与原文校验通过"
-        } catch { probabilityStatus = handle(error, ai: true) }
+        } catch {
+            probabilityRequestFailed = true
+            probabilityStatus = handle(error, ai: true)
+        }
     }
     func referenceSignals(asOf: Date) -> [ForecastSignal] {
         let canonical = try? APIEndpoint(baseURL).baseURL.absoluteString
@@ -352,6 +390,7 @@ import RadarCore
         if let failure = error as? ConnectionFailure { return failure.errorDescription ?? "连接未完成" }
         if let failure = error as? AnalysisValidationError { return failure.errorDescription ?? "分析结果未通过校验" }
         if let failure = error as? KeychainFailure {
+            if failure.requiresAuthorization { return "AI 密钥需要重新授权。点击“授权并评估”，在 macOS 钥匙串提示中允许访问；若仍失败，请在设置中重新保存 Key。" }
             if failure.status == -25308 { return "后台无法读取钥匙串。请点击测试连接，并在系统提示中允许本应用访问后再运行分析。" }
             return failure.errorDescription ?? "钥匙串操作未完成"
         }

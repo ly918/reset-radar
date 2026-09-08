@@ -31,10 +31,11 @@ struct AIProbabilitySummary: View {
                 }
             }
             HStack {
-                Text(result != nil ? "AI 估计 · 未校准" : connections.busyAI ? "正在评估…" : "暂无有效预测")
-                    .foregroundStyle(.secondary)
+                Text(connections.probabilitySummary(asOf: asOf))
+                    .foregroundStyle(connections.credentialAccessRequired && result == nil ? Color.orange : Color.secondary)
+                    .lineLimit(2)
                 Spacer()
-                Button(connections.busyAI ? "评估中…" : "重新评估", systemImage: "arrow.clockwise") {
+                Button(connections.busyAI ? "评估中…" : connections.credentialAccessRequired ? "授权并评估" : "重新评估", systemImage: "arrow.clockwise") {
                     Task { await connections.predictProbability() }
                 }.buttonStyle(.plain)
                     .disabled(connections.busyAI || connections.busyWeb || connections.snapshot == nil || connections.gate.blockingFailure(ai: true, now: asOf) != nil)

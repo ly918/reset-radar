@@ -9,10 +9,17 @@ struct RadarWindowAction {
 private struct RadarWindowActionKey: EnvironmentKey {
     static let defaultValue = RadarWindowAction()
 }
+private struct RadarCloseWindowActionKey: EnvironmentKey {
+    static let defaultValue = RadarWindowAction()
+}
 private struct NativeWindowMaterialKey: EnvironmentKey {
     static let defaultValue = false
 }
 extension EnvironmentValues {
+    var radarCloseWindow: RadarWindowAction {
+        get { self[RadarCloseWindowActionKey.self] }
+        set { self[RadarCloseWindowActionKey.self] = newValue }
+    }
     var radarOpenWindow: RadarWindowAction {
         get { self[RadarWindowActionKey.self] }
         set { self[RadarWindowActionKey.self] = newValue }
@@ -102,6 +109,21 @@ extension EnvironmentValues {
     override func cancelOperation(_ sender: Any?) { orderOut(sender) }
 }
 
+/// AppKit-owned windows do not inherit SwiftUI Window scene keyboard commands.
+@MainActor private final class RadarDetailWindow: NSWindow {
+    override func cancelOperation(_ sender: Any?) { performClose(sender) }
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
+        if event.type == .keyDown,
+           (event.keyCode == 53 && modifiers.isEmpty ||
+            event.charactersIgnoringModifiers?.lowercased() == "w" && modifiers == .command) {
+            performClose(nil)
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+}
+
 private struct MenuPanelContent: View {
     @ObservedObject var model: DemoModel
     @ObservedObject var connections: ConnectionModel
@@ -168,6 +190,7 @@ private struct MenuPanelContent: View {
         let root = content
             .environment(\.nativeWindowMaterial, true)
             .environment(\.radarOpenWindow, RadarWindowAction { [weak self] id in self?.showWindow(id) })
+            .environment(\.radarCloseWindow, RadarWindowAction { [weak self] id in self?.closeWindow(id) })
         let host = ClearHostingView(rootView: AnyView(root))
         host.frame = NSRect(origin: .zero, size: size)
         host.wantsLayer = true
@@ -242,7 +265,7 @@ private struct MenuPanelContent: View {
             size = NSSize(width: 500, height: 400); title = "Reset Radar · 开始使用"
         default: return
         }
-        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
+        let window = RadarDetailWindow(contentRect: NSRect(origin: .zero, size: size),
                               styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
         window.title = title
         configure(window, content: content, size: size)
@@ -252,6 +275,9 @@ private struct MenuPanelContent: View {
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
         }
+    }
+    func closeWindow(_ id: String) {
+        windows[id]?.performClose(nil)
     }
 
     /// App-owned hierarchy checks only: no desktop capture, credentials or network.
@@ -276,6 +302,26 @@ private struct MenuPanelContent: View {
             }
             window.layoutIfNeeded()
             print("PASS: window route \(id), content=\(Int(window.contentView!.bounds.width))x\(Int(window.contentView!.bounds.height))")
+        }
+        if let history = windows["reset-history"] {
+            final class CloseReceipt: @unchecked Sendable { var count = 0 }
+            let receipt = CloseReceipt()
+            let token = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: history, queue: nil) { _ in receipt.count += 1 }
+            defer { NotificationCenter.default.removeObserver(token) }
+            history.orderBack(nil)
+            print("HISTORY CLOSE: visible=\(history.isVisible), closable=\(history.styleMask.contains(.closable)), close button enabled=\(history.standardWindowButton(.closeButton)?.isEnabled ?? false)")
+            closeWindow("reset-history")
+            print("HISTORY CLOSE: notifications=\(receipt.count), visible=\(history.isVisible)")
+            guard receipt.count == 1 else { throw CocoaError(.validationMissingMandatoryProperty) }
+            for (keyCode, characters, flags) in [(UInt16(13), "w", NSEvent.ModifierFlags.command), (UInt16(53), "\u{1b}", NSEvent.ModifierFlags())] {
+                history.orderBack(nil)
+                guard let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags,
+                    timestamp: 0, windowNumber: history.windowNumber, context: nil, characters: characters,
+                    charactersIgnoringModifiers: characters, isARepeat: false, keyCode: keyCode),
+                    history.performKeyEquivalent(with: event) else { throw CocoaError(.validationMissingMandatoryProperty) }
+            }
+            guard receipt.count == 3 else { throw CocoaError(.validationMissingMandatoryProperty) }
+            print("PASS: history close action, Cmd-W and Escape send window close notifications")
         }
         guard statusItem.button?.action == #selector(togglePanel), statusItem.button?.target === self else {
             throw CocoaError(.validationMissingMandatoryProperty)
