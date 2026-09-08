@@ -2,6 +2,7 @@ import Foundation
 import CryptoKit
 
 public struct AIProbabilityForecast: Codable, Sendable {
+    public var reasonLanguage: String? = nil
     public let probabilities: [Double]
     public let reason: String
     public let evidencePostID: String
@@ -31,7 +32,7 @@ public struct AIProbabilityForecast: Codable, Sendable {
 extension ConnectionClient {
     public func forecastProbability(posts: [PublicWebPost], history: CommunityResetHistory?,
                                     plan: AnnouncedResetPlan?, asOf: Date, secret: String,
-                                    model: String, baseURL: String, api: APIProtocol) async throws -> AIProbabilityForecast {
+                                    model: String, baseURL: String, api: APIProtocol, reasonLanguage: AnalysisLanguage = .simplifiedChinese) async throws -> AIProbabilityForecast {
         guard !posts.isEmpty, posts.count <= 5, posts.reduce(0, { $0 + $1.text.utf8.count }) <= 60_000 else {
             throw ConnectionFailure(.invalidInput)
         }
@@ -59,8 +60,8 @@ extension ConnectionClient {
         A classification confidence is NOT an occurrence probability. We provide no calibrated promise-fulfillment rate; do not invent historical success rates or claim certainty/calibration.
         Interpret today/tomorrow in the publication timezone/date, not the user's date. Account for the PST/PDT ambiguity given. If scheduled time has passed, lack of confirmation does not prove either execution or nonexecution. Do not count a reset already reported as completed as a future event.
         If posts do not support an uplift, use the limited history cautiously. Missing coverage and context affect certainty. Do not assert any user's personal quota was reset.
-        Give a concise Chinese reason (max 180 Chinese characters) explaining the decisive evidence, timing and uncertainty. evidence_post_id must be an input ID; evidence_quote must be an exact contiguous substring of that post (max 240 characters). Do not quote song lyrics.
-        """
+        Give a concise reason (max 600 characters) explaining the decisive evidence, timing and uncertainty. evidence_post_id must be an input ID; evidence_quote must be an exact contiguous substring of that post (max 240 characters). Do not quote song lyrics.
+        """ + "\n" + reasonLanguage.instruction
         let response = try await requestJSON(secret: secret, model: model, baseURL: baseURL, api: api,
             instructions: instructions, input: String(data: JSONSerialization.data(withJSONObject: input), encoding: .utf8)!,
             schema: schema, name: "reset_probability", maxTokens: 2048)
@@ -75,7 +76,7 @@ extension ConnectionClient {
               let source = posts.first(where: { $0.id == result.evidence_post_id }), source.text.contains(result.evidence_quote) else {
             throw AnalysisValidationError(check: "概率范围、递增关系或原文证据不合格", row: nil)
         }
-        return AIProbabilityForecast(probabilities: result.probabilities, reason: result.reason_zh,
+        return AIProbabilityForecast(reasonLanguage: reasonLanguage.rawValue, probabilities: result.probabilities, reason: result.reason_zh,
             evidencePostID: result.evidence_post_id, evidenceQuote: result.evidence_quote, asOf: asOf,
             inputFingerprint: AIProbabilityForecast.fingerprint(posts), model: model,
             baseURL: try APIEndpoint(baseURL).baseURL.absoluteString, api: api.rawValue,

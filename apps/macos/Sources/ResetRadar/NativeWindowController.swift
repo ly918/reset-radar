@@ -168,6 +168,15 @@ private struct MenuPanelContent: View {
             .sink { [weak self] _ in self?.updateStatus() }.store(in: &cancellables)
         Timer.publish(every: 30, on: .main, in: .common).autoconnect()
             .sink { [weak self] _ in self?.updateStatus() }.store(in: &cancellables)
+        LanguageSettings.shared.$language.dropFirst().receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.windows["settings"]?.title = L10n.tr("Reset Radar · 设置")
+                self.windows["reset-history"]?.title = L10n.tr("Reset Radar · 历史 Reset")
+                self.windows["rehearsal"]?.title = L10n.tr("Reset Radar · 离线演示")
+                self.windows["onboarding"]?.title = L10n.tr("Reset Radar · 开始使用")
+                self.updateStatus()
+            }.store(in: &cancellables)
         updateStatus()
         clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             MainActor.assumeIsolated { self?.panel.orderOut(nil) }
@@ -191,7 +200,7 @@ private struct MenuPanelContent: View {
             .environment(\.nativeWindowMaterial, true)
             .environment(\.radarOpenWindow, RadarWindowAction { [weak self] id in self?.showWindow(id) })
             .environment(\.radarCloseWindow, RadarWindowAction { [weak self] id in self?.closeWindow(id) })
-        let host = ClearHostingView(rootView: AnyView(root))
+        let host = ClearHostingView(rootView: AnyView(LocalizedRoot(content: root)))
         host.frame = NSRect(origin: .zero, size: size)
         host.wantsLayer = true
         host.layer?.backgroundColor = NSColor.clear.cgColor
@@ -203,13 +212,13 @@ private struct MenuPanelContent: View {
         let forecast = connections.currentProbability(asOf: Date())
         let indicator = MenuProbabilityAppearance(forecast?.probabilities.first)
         let real = connections.showRealFeed
-        let description = real ? indicator.description : "Reset Radar · 离线演示"
+        let description = real ? indicator.description : L10n.tr("Reset Radar · 离线演示")
         let button = statusItem.button
         button?.title = real ? " \(indicator.value) · 12h" : " \(model.values[0]) · Demo"
         button?.image = NSImage(systemSymbolName: real ? indicator.symbol : "play.circle", accessibilityDescription: description)
         button?.image?.isTemplate = true
         button?.toolTip = description
-        button?.setAccessibilityLabel("Reset Radar，" + description)
+        button?.setAccessibilityLabel("Reset Radar, " + description)
     }
     @objc private func togglePanel() {
         if panel.isVisible { panel.orderOut(nil) } else { showPanel() }
@@ -252,17 +261,17 @@ private struct MenuPanelContent: View {
         switch id {
         case "settings":
             content = AnyView(RadarSettings(model: model, connections: connections))
-            size = NSSize(width: 660, height: 780); title = "Reset Radar · 设置"
+            size = NSSize(width: 660, height: 780); title = L10n.tr("Reset Radar · 设置")
         case "reset-history":
             content = AnyView(CommunityHistoryView(connections: connections))
-            size = NSSize(width: 540, height: 680); title = "Reset Radar · 历史 Reset"
+            size = NSSize(width: 540, height: 680); title = L10n.tr("Reset Radar · 历史 Reset")
         case "rehearsal":
             content = AnyView(RadarPanel(model: model))
-            size = NSSize(width: 380, height: 640); title = "Reset Radar · 离线演示"
+            size = NSSize(width: 380, height: 640); title = L10n.tr("Reset Radar · 离线演示")
             windows["onboarding"]?.orderOut(nil)
         case "onboarding":
             content = AnyView(OnboardingView())
-            size = NSSize(width: 500, height: 400); title = "Reset Radar · 开始使用"
+            size = NSSize(width: 500, height: 400); title = L10n.tr("Reset Radar · 开始使用")
         default: return
         }
         let window = RadarDetailWindow(contentRect: NSRect(origin: .zero, size: size),
@@ -297,6 +306,7 @@ private struct MenuPanelContent: View {
 
     /// App-owned hierarchy checks only: no desktop capture, credentials or network.
     func validateSurface() throws {
+        try LocalizationChecks.run()
         guard let root = panel.contentView as? NativeWindowSurface,
               !panel.isOpaque, panel.backgroundColor.alphaComponent == 0,
               root.subviews.count == 1 else { throw CocoaError(.validationMissingMandatoryProperty) }

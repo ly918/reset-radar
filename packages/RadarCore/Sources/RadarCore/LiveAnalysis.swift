@@ -1,5 +1,12 @@
 import Foundation
 
+public enum AnalysisLanguage: String, Codable, Sendable {
+    case english = "en", simplifiedChinese = "zh-Hans"
+    var instruction: String {
+        "Write the explanation in reason_zh in " + (self == .english ? "English" : "Simplified Chinese") + ". The field name is retained for compatibility. Keep source evidence and time expressions verbatim in their original language."
+    }
+}
+
 public struct AnalysisValidationError: Error, LocalizedError, Sendable {
     public let check: String
     public let row: Int?
@@ -9,6 +16,7 @@ public struct AnalysisValidationError: Error, LocalizedError, Sendable {
 }
 
 public struct LivePostAnalysis: Codable, Sendable {
+    public var reasonLanguage: String? = nil
     public let contentHash: String
     public let result: SignalAnalysis
     public let analyzedAt: Date
@@ -49,7 +57,7 @@ extension ConnectionClient {
         guard !prompt.isEmpty else { throw ConnectionFailure(.invalidResponse) }
     }
     public func analyzePosts(_ posts: [PublicWebPost], secret: String, model: String,
-                             baseURL: String, api: APIProtocol) async throws -> [LivePostAnalysis] {
+                             baseURL: String, api: APIProtocol, reasonLanguage: AnalysisLanguage = .simplifiedChinese) async throws -> [LivePostAnalysis] {
         guard !posts.isEmpty, posts.count <= 5, Set(posts.map(\.id)).count == posts.count,
               posts.reduce(0, { $0 + $1.text.utf8.count }) <= 60_000 else { throw ConnectionFailure(.invalidInput) }
         let schemaURL = try Self.analysisResource("signal-analysis.schema", extension: "json")
@@ -62,7 +70,7 @@ extension ConnectionClient {
         let schema: [String: Any] = ["type": "object", "properties": ["results": ["type": "array", "items": itemSchema]],
                                      "required": ["results"], "additionalProperties": false]
         let promptURL = try Self.analysisResource("signal_classifier_v1", extension: "md")
-        let instructions = try String(contentsOf: promptURL, encoding: .utf8) + "\nReturn {\"results\":[...]} with exactly one result per supplied post. Retain context_missing when the source marks it true."
+        let instructions = try String(contentsOf: promptURL, encoding: .utf8) + "\nReturn {\"results\":[...]} with exactly one result per supplied post. Retain context_missing when the source marks it true." + "\n" + reasonLanguage.instruction
         let data = try JSONSerialization.data(withJSONObject: posts.map { post in
             ["post_id": post.id, "text": post.text, "published_at": post.publishedAt.ISO8601Format(),
              "context_missing": post.contextMissing] as [String: Any]
@@ -70,7 +78,9 @@ extension ConnectionClient {
         let response = try await requestJSON(secret: secret, model: model, baseURL: baseURL, api: api,
             instructions: instructions, input: String(data: data, encoding: .utf8)!, schema: schema,
             name: "post_signals", maxTokens: 4096)
-        return try Self.validateAnalyses(response.data, posts: posts, baseURL: baseURL, model: model, api: api)
+        var results = try Self.validateAnalyses(response.data, posts: posts, baseURL: baseURL, model: model, api: api)
+        for index in results.indices { results[index].reasonLanguage = reasonLanguage.rawValue }
+        return results
     }
     static func validateAnalyses(_ data: Data, posts: [PublicWebPost], baseURL: String,
                                  model: String, api: APIProtocol) throws -> [LivePostAnalysis] {

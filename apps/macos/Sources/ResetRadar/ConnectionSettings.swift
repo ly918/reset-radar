@@ -8,22 +8,22 @@ import RadarCore
     @Published var baseURL = APIEndpoint.defaultURL
     @Published var api: APIProtocol = .responses
     @Published var history: CommunityResetHistory?
-    @Published var historyStatus = "历史记录尚未加载"
+    @Published var historyStatus: LocalizedMessage = "历史记录尚未加载"
     @Published var analyses: [String: LivePostAnalysis] = [:]
-    @Published var analysisStatus = "尚未分析真实帖子"
+    @Published var analysisStatus: LocalizedMessage = "尚未分析真实帖子"
     @Published var probabilityForecast: AIProbabilityForecast?
-    @Published var probabilityStatus = "尚未请求 AI 概率预测"
+    @Published var probabilityStatus: LocalizedMessage = "尚未请求 AI 概率预测"
     @Published private(set) var credentialAccessRequired = false
     @Published private(set) var probabilityRequestFailed = false
-    @Published var aiStatus = "未配置"
-    @Published var webStatus = "无需 X Token · 尚未抓取"
+    @Published var aiStatus: LocalizedMessage = "未配置"
+    @Published var webStatus: LocalizedMessage = "无需 X Token · 尚未抓取"
     @Published var busyAI = false
     @Published var busyWeb = false
     @Published var snapshot: PublicWebSnapshot?
     @Published var showRealFeed = true
     @Published var gate = ConnectionGate()
     @Published var monitoring = false
-    @Published var runtimeStatus = "自动检查未启动"
+    @Published var runtimeStatus: LocalizedMessage = "自动检查未启动"
     @Published var nextCheck: Date?
     private var monitorTask: Task<Void, Never>?
     private var sessionCredential: (endpoint: String, secret: String)?
@@ -58,7 +58,7 @@ import RadarCore
                 }
                 if !analyses.isEmpty { analysisStatus = "已加载本机分析记录 · 待人工核验" }
             }
-            webStatus = "已加载本机缓存 · \(saved.observedAt.formatted(date: .abbreviated, time: .shortened)) 抓取"
+            webStatus = "已加载本机缓存 · \(saved.observedAt) 抓取"
         }
     }
     private func readAISecret(allowInteraction: Bool) async throws -> String? {
@@ -160,7 +160,7 @@ import RadarCore
                 "reason": forecast?.reason ?? "数据不足",
                 "primary_display": "ai_probability",
                 "ai_probabilities": currentProbability(asOf: Date())?.probabilities ?? [],
-                "ai_probability_reason": currentProbability(asOf: Date())?.reason ?? probabilityStatus,
+                "ai_probability_reason": currentProbability(asOf: Date())?.reason ?? probabilityStatus.description,
                 "ai_probability_calibrated": false,
                 "announced_plan": plan.map { ["post_id": $0.id, "source_url": $0.sourceURL.absoluteString,
                     "time_expression": $0.expression, "scheduled_at": $0.scheduledAt.ISO8601Format(),
@@ -174,7 +174,7 @@ import RadarCore
                     "eligible_signal_count": referenceSignals(asOf: Date()).count,
                     "baseline": reference?.baseline ?? [], "time_basis": "announcement"] as [String: Any],
                 "post_count": posts.count, "analysis_count": analyses.count,
-                "status": runtimeStatus, "system_notifications": false]
+                "status": runtimeStatus.description, "system_notifications": false]
             try save(JSONSerialization.data(withJSONObject: report, options: .prettyPrinted), filename: "latest-runtime.json")
         } catch { runtimeStatus = "本轮数据已处理，但运行记录保存失败" }
         return nextAutomaticCheck(asOf: Date())
@@ -190,7 +190,7 @@ import RadarCore
         if let plan = announcedPlan(asOf: now), plan.latest > now { deadlines.append(plan.latest) }
         return max(now.addingTimeInterval(1), deadlines.min()!)
     }
-    func probabilitySummary(asOf: Date) -> String {
+    func probabilitySummary(asOf: Date) -> LocalizedMessage {
         if currentProbability(asOf: asOf) != nil { return "AI 估计 · 未校准" }
         if busyAI { return "正在评估下一次 Reset…" }
         if credentialAccessRequired { return "AI 密钥需要授权" }
@@ -224,7 +224,7 @@ import RadarCore
             probabilityStatus = "AI 正在评估未来 12 / 24 / 48 小时概率…"
             let now = Date()
             let result = try await client.forecastProbability(posts: Array(snapshot.posts.prefix(5)), history: history,
-                plan: announcedPlan(asOf: now), asOf: now, secret: secret, model: model, baseURL: baseURL, api: api)
+                plan: announcedPlan(asOf: now), asOf: now, secret: secret, model: model, baseURL: baseURL, api: api, reasonLanguage: L10n.language == .english ? .english : .simplifiedChinese)
             try save(JSONEncoder().encode(result), filename: "ai-probability.json")
             probabilityForecast = result
             probabilityStatus = "AI 概率预测完成 · 数值与原文校验通过"
@@ -312,7 +312,7 @@ import RadarCore
             try reserve(ai: true)
             aiStatus = "正在请求所填服务 · 只发送固定测试文本"
             let result = try await client.testOpenAI(secret: secret, model: model, baseURL: baseURL, api: api)
-            aiStatus = "连接与 JSON 测试通过 · \(result.model)\n输入 \(result.inputTokens.map(String.init) ?? "未知") / 输出 \(result.outputTokens.map(String.init) ?? "未知") tokens；尚未评测帖子分类质量。"
+            aiStatus = "连接与 JSON 测试通过 · \(result.model)\n输入 \(LocalizedMessage(key: result.inputTokens.map(String.init) ?? "未知")) / 输出 \(LocalizedMessage(key: result.outputTokens.map(String.init) ?? "未知")) tokens；尚未评测帖子分类质量。"
         } catch { aiStatus = handle(error, ai: true) }
     }
     func analyzeRealPosts(allowCredentialInteraction: Bool = true) async {
@@ -328,7 +328,7 @@ import RadarCore
             try persistConfiguration()
             try reserve(ai: true)
             analysisStatus = "正在分析 \(posts.count) 条真实帖子…"
-            let rows = try await client.analyzePosts(posts, secret: secret, model: model, baseURL: baseURL, api: api)
+            let rows = try await client.analyzePosts(posts, secret: secret, model: model, baseURL: baseURL, api: api, reasonLanguage: L10n.language == .english ? .english : .simplifiedChinese)
             try save(JSONEncoder().encode(rows), filename: "post-analyses.json")
             analyses = Dictionary(uniqueKeysWithValues: rows.map { ($0.result.post_id, $0) })
             useRealFeed()
@@ -377,28 +377,34 @@ import RadarCore
         try data.write(to: url, options: .atomic)
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
     }
-    private func handle(_ error: Error, ai: Bool) -> String {
+    private func handle(_ error: Error, ai: Bool) -> LocalizedMessage {
         if let failure = error as? ConnectionFailure, let retry = failure.retryAt {
             gate.deferRetry(ai: ai, until: retry)
             do { try save(JSONEncoder().encode(gate), filename: "request-budget.json") }
             catch { return "无法保存重试状态，已停止请求。请检查本机存储权限。" }
-            return (failure.errorDescription ?? "连接未完成") + "\n可重试：\(retry.formatted(date: .abbreviated, time: .standard))"
+            return connectionMessage(failure) + "\n可重试：\(retry)"
         }
         return safeMessage(error)
     }
-    private func safeMessage(_ error: Error) -> String {
-        if let failure = error as? ConnectionFailure { return failure.errorDescription ?? "连接未完成" }
-        if let failure = error as? AnalysisValidationError { return failure.errorDescription ?? "分析结果未通过校验" }
+    private func connectionMessage(_ failure: ConnectionFailure) -> LocalizedMessage {
+        let message = LocalizedMessage(key: ConnectionFailure(failure.issue).errorDescription ?? "连接未完成")
+        if let status = failure.status { return "\(message) (HTTP \(status))" }
+        return message
+    }
+    private func safeMessage(_ error: Error) -> LocalizedMessage {
+        if let failure = error as? ConnectionFailure { return connectionMessage(failure) }
+        if let failure = error as? AnalysisValidationError { return "\(LocalizedMessage(key: "分析结果未通过校验")): \(LocalizedMessage(key: failure.check))" }
         if let failure = error as? KeychainFailure {
             if failure.requiresAuthorization { return "AI 密钥需要重新授权。点击“授权并评估”，在 macOS 钥匙串提示中允许访问；若仍失败，请在设置中重新保存 Key。" }
             if failure.status == -25308 { return "后台无法读取钥匙串。请点击测试连接，并在系统提示中允许本应用访问后再运行分析。" }
-            return failure.errorDescription ?? "钥匙串操作未完成"
+            return "钥匙串操作未完成（\(failure.status)）。请解锁本机钥匙串或检查系统授权后重试。"
         }
         return "本机保存或读取未完成，请检查磁盘与文件权限后重试。"
     }
 }
 
 struct RadarSettings: View {
+    @ObservedObject private var languageSettings = LanguageSettings.shared
     @ObservedObject var model: DemoModel
     @ObservedObject var connections: ConnectionModel
     @Environment(\.radarCloseWindow) private var closeWindow
@@ -406,15 +412,19 @@ struct RadarSettings: View {
     var body: some View {
         VStack(spacing: 6) {
             HStack {
-                Text("设置").font(.headline)
+                Text(L10n.tr("设置")).font(.headline)
                 Spacer()
-                Button("关闭", systemImage: "xmark.circle.fill") { closeWindow(id: "settings") }
-                    .buttonStyle(.plain).help("关闭设置（⌘W / Esc）")
+                Button(L10n.tr("关闭"), systemImage: "xmark.circle.fill") { closeWindow(id: "settings") }
+                    .buttonStyle(.plain).help(L10n.tr("关闭设置（⌘W / Esc）"))
                     .accessibilityIdentifier("close-settings")
             }.padding(.bottom, 8)
-            Picker("设置分组", selection: $connectionTab) {
-                Text("真实运行").tag(true)
-                Text("离线预演").tag(false)
+            Picker(L10n.tr("语言"), selection: $languageSettings.language) {
+                ForEach(AppLanguage.allCases) { Text($0.name).tag($0) }
+            }.pickerStyle(.menu).frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("app-language")
+            Picker(L10n.tr("设置分组"), selection: $connectionTab) {
+                Text(L10n.tr("真实运行")).tag(true)
+                Text(L10n.tr("离线预演")).tag(false)
             }.pickerStyle(.segmented).labelsHidden()
             if connectionTab { ConnectionSettingsView(connections: connections) }
             else { DemoSettingsView(model: model) }
@@ -429,30 +439,30 @@ struct ConnectionSettingsView: View {
     @Environment(\.radarOpenWindow) private var openWindow
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("真实运行与连接", systemImage: "network").font(.title2.weight(.semibold))
-            Text("保存密钥不会发出请求；点击抓取、测试或分析才连接对应服务。")
+            Label(L10n.tr("真实运行与连接"), systemImage: "network").font(.title2.weight(.semibold))
+            Text(L10n.tr("保存密钥不会发出请求；点击抓取、测试或分析才连接对应服务。"))
                 .font(.caption).foregroundStyle(.secondary)
-            Toggle("每小时自动检查真实数据", isOn: Binding(get: { connections.monitoring }, set: { enabled in
+            Toggle(L10n.tr("每小时自动检查真实数据"), isOn: Binding(get: { connections.monitoring }, set: { enabled in
                 if enabled { connections.startMonitoring() } else { connections.stopMonitoring() }
             }))
             Text(connections.runtimeStatus).font(.caption).foregroundStyle(.secondary)
             if let next = connections.nextCheck {
-                Text("下次检查：" + next.formatted(date: .omitted, time: .standard)).font(.caption2).foregroundStyle(.secondary)
+                Text(L10n.tr("下次检查：") + next.localized(date: .omitted, time: .standard)).font(.caption2).foregroundStyle(.secondary)
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     GroupBox {
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("网页采集（实验）").font(.headline)
-                            Text("目标：@thsottiaux · 无需 X Token").font(.subheadline)
-                            Text("只读取公开主页，不读取浏览器登录信息。取得的少量帖子不能证明历史覆盖完整。")
+                            Text(L10n.tr("网页采集（实验）")).font(.headline)
+                            Text(L10n.tr("目标：@thsottiaux · 无需 X Token")).font(.subheadline)
+                            Text(L10n.tr("只读取公开主页，不读取浏览器登录信息。取得的少量帖子不能证明历史覆盖完整。"))
                                 .font(.caption).foregroundStyle(.secondary)
                             HStack {
-                                Button(connections.busyWeb ? "正在抓取…" : "抓取公开网页") { Task { await connections.fetchWeb() } }
+                                Button(connections.busyWeb ? L10n.tr("正在抓取…") : L10n.tr("抓取公开网页")) { Task { await connections.fetchWeb() } }
                                     .disabled(connections.busyWeb || connections.busyAI)
                                 if connections.snapshot != nil {
-                                    Button("查看真实帖子") { connections.useRealFeed(); openWindow(id: "web-feed"); NSApp.activate(ignoringOtherApps: true) }
-                                    Button("清除网页缓存") { connections.clearWebCache() }.disabled(connections.busyWeb || connections.busyAI)
+                                    Button(L10n.tr("查看真实帖子")) { connections.useRealFeed(); openWindow(id: "web-feed"); NSApp.activate(ignoringOtherApps: true) }
+                                    Button(L10n.tr("清除网页缓存")) { connections.clearWebCache() }.disabled(connections.busyWeb || connections.busyAI)
                                 }
                             }
                             Text(connections.webStatus).font(.caption).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
@@ -460,27 +470,27 @@ struct ConnectionSettingsView: View {
                     }
                     GroupBox {
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("AI 服务 · 支持第三方").font(.headline)
-                            TextField("Base URL，例如 https://api.example.com/v1", text: $connections.baseURL)
+                            Text(L10n.tr("AI 服务 · 支持第三方")).font(.headline)
+                            TextField(L10n.tr("Base URL，例如 https://api.example.com/v1"), text: $connections.baseURL)
                                 .textFieldStyle(.roundedBorder).disabled(connections.busyAI)
                                 .accessibilityLabel("API Base URL")
                                 .onChange(of: connections.baseURL) { _, _ in connections.configurationChanged() }
-                            Picker("接口类型", selection: $connections.api) {
+                            Picker(L10n.tr("接口类型"), selection: $connections.api) {
                                 ForEach(APIProtocol.allCases, id: \.self) { Text($0.label).tag($0) }
                             }.pickerStyle(.segmented).disabled(connections.busyAI)
                                 .onChange(of: connections.api) { _, _ in connections.configurationChanged() }
-                            Text("请求地址：" + connections.requestTarget).font(.caption2).foregroundStyle(.secondary)
+                            Text(L10n.tr("请求地址：") + connections.requestTarget).font(.caption2).foregroundStyle(.secondary)
                                 .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                            SecureField(connections.savedAI ? "已有密钥；输入新 Key 可替换" : "粘贴此服务的 API Key", text: $secret)
+                            SecureField(connections.savedAI ? L10n.tr("已有密钥；输入新 Key 可替换") : L10n.tr("粘贴此服务的 API Key"), text: $secret)
                                 .textFieldStyle(.roundedBorder).disabled(connections.busyAI)
-                                .accessibilityLabel("API Key 安全输入框")
-                            TextField("模型 ID，支持 provider/model 格式", text: $connections.modelID)
+                                .accessibilityLabel(L10n.tr("API Key 安全输入框"))
+                            TextField(L10n.tr("模型 ID，支持 provider/model 格式"), text: $connections.modelID)
                                 .textFieldStyle(.roundedBorder).disabled(connections.busyAI)
                                 .onChange(of: connections.modelID) { _, _ in connections.configurationChanged() }
                             HStack {
-                                Button("保存 URL、Key 与模型") { if connections.saveAI(secret) { secret = "" } }
+                                Button(L10n.tr("保存 URL、Key 与模型")) { if connections.saveAI(secret) { secret = "" } }
                                     .disabled(connections.busyAI)
-                                Button("删除已保存密钥") { connections.deleteAI(); secret = "" }.disabled(connections.busyAI)
+                                Button(L10n.tr("删除已保存密钥")) { connections.deleteAI(); secret = "" }.disabled(connections.busyAI)
                             }
                             AIRequestActions(connections: connections, hasUnsavedKey: !secret.isEmpty)
                         }.padding(8).frame(maxWidth: .infinity, alignment: .leading)
@@ -488,15 +498,15 @@ struct ConnectionSettingsView: View {
                     HStack {
                         Text(connections.historyStatus).font(.caption)
                         Spacer()
-                        Button("查看历史 Reset") { openWindow(id: "reset-history"); NSApp.activate(ignoringOtherApps: true) }
+                        Button(L10n.tr("查看历史 Reset")) { openWindow(id: "reset-history"); NSApp.activate(ignoringOtherApps: true) }
                     }
-                    Text("密钥只存本机钥匙串，不写入配置或日志。网页结果独立保存在本机；系统通知保持关闭。")
+                    Text(L10n.tr("密钥只存本机钥匙串，不写入配置或日志。网页结果独立保存在本机；系统通知保持关闭。"))
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
             HStack {
-                Button("离线演示面板") { connections.returnToDemo(); openWindow(id: "rehearsal"); NSApp.activate(ignoringOtherApps: true) }
-                Spacer(); Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "开发构建").font(.caption).foregroundStyle(.secondary)
+                Button(L10n.tr("离线演示面板")) { connections.returnToDemo(); openWindow(id: "rehearsal"); NSApp.activate(ignoringOtherApps: true) }
+                Spacer(); Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? L10n.tr("开发构建")).font(.caption).foregroundStyle(.secondary)
             }
         }.padding(14).onAppear { connections.refreshCredentialStatus() }.onDisappear { secret = "" }
     }
@@ -515,18 +525,18 @@ struct WebFeedView: View {
                 if connections.busyWeb || connections.busyAI {
                     ProgressView().controlSize(.small)
                 }
-                Button("刷新网页", systemImage: "arrow.clockwise") { Task { await connections.fetchWeb() } }
+                Button(L10n.tr("刷新网页"), systemImage: "arrow.clockwise") { Task { await connections.fetchWeb() } }
                     .disabled(connections.busyWeb || connections.busyAI)
-                    .help("刷新最近帖子")
-                Button("设置", systemImage: "gearshape") { showWindow("settings") }.help("设置")
+                    .help(L10n.tr("刷新最近帖子"))
+                Button(L10n.tr("设置"), systemImage: "gearshape") { showWindow("settings") }.help(L10n.tr("设置"))
                 Menu {
-                    Button("运行详情") { showingStatus = true }
-                    Button("历史记录") { showWindow("reset-history") }
+                    Button(L10n.tr("运行详情")) { showingStatus = true }
+                    Button(L10n.tr("历史记录")) { showWindow("reset-history") }
                     Divider()
-                    Button("离线演示") { connections.returnToDemo() }
-                    Button("退出 Reset Radar") { NSApp.terminate(nil) }
+                    Button(L10n.tr("离线演示")) { connections.returnToDemo() }
+                    Button(L10n.tr("退出 Reset Radar")) { NSApp.terminate(nil) }
                 } label: { Image(systemName: "ellipsis.circle") }
-                    .menuStyle(.borderlessButton).fixedSize().help("更多")
+                    .menuStyle(.borderlessButton).fixedSize().help(L10n.tr("更多"))
             }.labelStyle(.iconOnly).buttonStyle(.plain)
 
             TimelineView(.periodic(from: .now, by: 60)) { context in
@@ -539,11 +549,11 @@ struct WebFeedView: View {
             Divider()
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text("最近帖子").font(.headline)
+                    Text(L10n.tr("最近帖子")).font(.headline)
                     Spacer()
                     if let snapshot = connections.snapshot {
                         Text("@" + snapshot.handle).font(.caption).foregroundStyle(.secondary)
-                            .help("页面报告的作者：\(snapshot.displayName)，ID：\(snapshot.authorID)；身份待独立核验。仅当前页样本。")
+                            .help(L10n.tr("页面报告的作者：\(snapshot.displayName)，ID：\(snapshot.authorID)；身份待独立核验。仅当前页样本。"))
                     }
                 }
                 ScrollView {
@@ -554,7 +564,7 @@ struct WebFeedView: View {
                                 if post.id != snapshot.posts.last?.id { Divider() }
                             }
                         } else {
-                            Text("暂无帖子，点击右上角刷新。")
+                            Text(L10n.tr("暂无帖子，点击右上角刷新。"))
                                 .font(.callout).foregroundStyle(.secondary).padding(.vertical, 20)
                         }
                     }.frame(maxWidth: .infinity, alignment: .leading)
@@ -563,23 +573,23 @@ struct WebFeedView: View {
             Button { showingStatus = true } label: {
                 HStack(spacing: 5) {
                     Circle().fill(connections.monitoring ? Color.green : Color.secondary).frame(width: 5, height: 5)
-                    Text(connections.monitoring ? "自动更新" : "手动更新")
+                    Text(connections.monitoring ? L10n.tr("自动更新") : L10n.tr("手动更新"))
                     Spacer()
                     if let snapshot = connections.snapshot {
                         if Date().timeIntervalSince(snapshot.observedAt) > 3 * 3600 {
-                            Text("帖子缓存已过期").foregroundStyle(.orange)
+                            Text(L10n.tr("帖子缓存已过期")).foregroundStyle(.orange)
                         } else {
-                            Text(snapshot.observedAt.formatted(date: .omitted, time: .shortened) + " 更新")
+                            Text(snapshot.observedAt.localized(date: .omitted, time: .shortened) + L10n.tr(" 更新"))
                         }
                     }
                 }.font(.caption).foregroundStyle(.secondary)
-            }.buttonStyle(.plain).help("查看运行状态")
+            }.buttonStyle(.plain).help(L10n.tr("查看运行状态"))
                 .popover(isPresented: $showingStatus) {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("运行详情").font(.headline)
+                        Text(L10n.tr("运行详情")).font(.headline)
                         Text(connections.webStatus)
                         Text(connections.runtimeStatus)
-                        Text("帖子仅覆盖抓取页面，历史归档也可能不完整。")
+                        Text(L10n.tr("帖子仅覆盖抓取页面，历史归档也可能不完整。"))
                             .foregroundStyle(.secondary)
                     }.font(.callout).padding(20).frame(width: 320)
                 }
@@ -596,38 +606,41 @@ private struct RealPostRow: View {
     let analysis: LivePostAnalysis?
     @State private var expanded = false
     private func signalLabel(_ type: String) -> String {
-        ["unrelated": "无关", "signal": "潜在信号", "planned_reset": "重置计划", "reset_claim": "声称已重置",
-         "banked_credit": "存储额度", "targeted_compensation": "定向补偿", "unknown": "不确定"][type] ?? "不确定"
+        ["unrelated": L10n.tr("无关"), "signal": L10n.tr("潜在信号"), "planned_reset": L10n.tr("重置计划"), "reset_claim": L10n.tr("声称已重置"),
+         "banked_credit": L10n.tr("存储额度"), "targeted_compensation": L10n.tr("定向补偿"), "unknown": L10n.tr("不确定")][type] ?? L10n.tr("不确定")
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack {
-                Text(post.publishedAt.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(.secondary)
+                Text(post.publishedAt.localized(date: .abbreviated, time: .shortened)).foregroundStyle(.secondary)
                 Spacer()
                 if let row = analysis, row.contentHash == post.contentHash,
                    !["unrelated", "unknown"].contains(row.result.event_type) {
-                    Text("AI分析·" + signalLabel(row.result.event_type))
+                    Text(L10n.tr("AI分析·") + signalLabel(row.result.event_type))
                         .foregroundStyle(row.result.event_type == "planned_reset" ? RadarPalette.gold : Color.accentColor)
-                        .help("AI 分类，尚待核验")
+                        .help(L10n.tr("AI 分类，尚待核验"))
                 }
             }.font(.caption)
             Text(post.text).font(.system(size: 13)).lineLimit(expanded ? nil : 3)
                 .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
             HStack {
-                Button(expanded ? "收起" : "展开") { expanded.toggle() }.buttonStyle(.plain)
+                Button(expanded ? L10n.tr("收起") : L10n.tr("展开")) { expanded.toggle() }.buttonStyle(.plain)
                 Spacer()
-                Link("原帖 ↗", destination: post.sourceURL)
+                Link(L10n.tr("原帖 ↗"), destination: post.sourceURL)
             }.font(.caption).foregroundStyle(.secondary)
             if expanded {
                 if post.contextMissing {
-                    Text("回复或引用上下文未完整获取").font(.caption).foregroundStyle(.secondary)
+                    Text(L10n.tr("回复或引用上下文未完整获取")).font(.caption).foregroundStyle(.secondary)
                 }
                 if let row = analysis, row.contentHash == post.contentHash {
-                    DisclosureGroup("AI 分析依据") {
+                    DisclosureGroup(L10n.tr("AI 分析依据")) {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(row.result.reason_zh)
-                            Text("原文证据：" + row.result.evidence_quote)
-                            Text(row.model + " · " + row.analyzedAt.formatted(date: .abbreviated, time: .shortened))
+                            if (row.reasonLanguage ?? "zh-Hans") != L10n.language.rawValue {
+                                Text(L10n.tr("已保存的解释保留原语言；再次分析会使用当前语言。")).foregroundStyle(.secondary)
+                            }
+                            Text(L10n.tr("原文证据：") + row.result.evidence_quote)
+                            Text(row.model + " · " + row.analyzedAt.localized(date: .abbreviated, time: .shortened))
                                 .foregroundStyle(.secondary)
                         }.textSelection(.enabled).padding(.top, 6)
                     }.font(.caption)
@@ -645,20 +658,20 @@ private struct AIRequestActions: View {
             let failure = connections.gate.blockingFailure(ai: true, now: context.date)
             let blocked = failure != nil || connections.busyAI || hasUnsavedKey || connections.modelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             VStack(alignment: .leading, spacing: 10) {
-                Button(connections.busyAI ? "请求进行中…" : "测试连接") { Task { await connections.testAI() } }
+                Button(connections.busyAI ? L10n.tr("请求进行中…") : L10n.tr("测试连接")) { Task { await connections.testAI() } }
                     .disabled(blocked)
                 if let failure, let retry = failure.retryAt {
                     if failure.issue == .dailyRequestLimit {
-                        Text("今日 20 次请求额度已用完").font(.caption)
+                        Text(L10n.tr("今日 20 次请求额度已用完")).font(.caption)
                     } else {
-                        Text("测试与分析共用等待期 · 剩余 \(max(0, Int(ceil(retry.timeIntervalSince(context.date))))) 秒").font(.caption)
+                        Text(L10n.tr("测试与分析共用等待期 · 剩余 \(max(0, Int(ceil(retry.timeIntervalSince(context.date))))) 秒")).font(.caption)
                     }
-                    Text("可再次请求：" + retry.formatted(date: .abbreviated, time: .standard)).font(.caption).foregroundStyle(.secondary)
+                    Text(L10n.tr("可再次请求：") + retry.localized(date: .abbreviated, time: .standard)).font(.caption).foregroundStyle(.secondary)
                 }
-                Text("测试发送固定短文本；分类和概率预测发送最近 5 条帖子的正文与时间，概率预测还包含历史间隔背景。Key 只发送至所填地址。三种操作共用每日 20 次额度，间隔至少 60 秒。")
+                Text(L10n.tr("测试发送固定短文本；分类和概率预测发送最近 5 条帖子的正文与时间，概率预测还包含历史间隔背景。Key 只发送至所填地址。三种操作共用每日 20 次额度，间隔至少 60 秒。"))
                     .font(.caption).foregroundStyle(.secondary)
                 Text(connections.aiStatus).font(.caption).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                Button("分析真实帖子（最多 5 条）") { Task { await connections.analyzeRealPosts() } }
+                Button(L10n.tr("分析真实帖子（最多 5 条）")) { Task { await connections.analyzeRealPosts() } }
                     .disabled(blocked || connections.busyWeb || connections.snapshot == nil)
                 Text(connections.analysisStatus).font(.caption).fixedSize(horizontal: false, vertical: true)
             }

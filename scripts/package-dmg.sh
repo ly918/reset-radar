@@ -22,8 +22,20 @@ trap cleanup EXIT
 mkdir -p "$DIST_DIR" "$WORK_DIR/staging" "$MOUNT_PATH" "$WORK_DIR/install-check"
 ditto "$APP_PATH" "$WORK_DIR/staging/Reset Radar.app"
 ln -s /Applications "$WORK_DIR/staging/Applications"
-cat > "$WORK_DIR/staging/安装说明.txt" <<'INSTALL'
-Reset Radar · macOS 安装说明
+cat > "$WORK_DIR/staging/Read Me.txt" <<'INSTALL'
+Reset Radar · macOS
+
+1. Drag Reset Radar.app into Applications.
+2. Launch the app and click its menu bar icon.
+3. Open Settings to configure your AI provider URL, key and model.
+4. English is the default language. Choose 简体中文 in Settings → Language if desired.
+
+Requires Apple Silicon and macOS 14+. macOS 26 uses native Liquid Glass.
+Ad-hoc signed; not Apple notarized. External downloads may require confirmation
+in System Settings → Privacy & Security. No personal keys or local caches are included.
+AI probabilities are uncalibrated estimates, not personal account reset guarantees.
+
+中文安装说明
 
 1. 将 Reset Radar.app 拖到旁边的 Applications（应用程序）文件夹。
 2. 从“应用程序”打开 Reset Radar。

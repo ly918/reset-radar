@@ -33,3 +33,11 @@ Key 按目标服务隔离保存在 Keychain。JSON 缓存位于应用自己的 A
 ## 平台边界
 
 UI 与 Keychain 使用 macOS 框架，不能把当前 SwiftUI/AppKit 工程直接打成 Windows EXE。Windows 需要新的界面、系统凭据存储、托盘和打包实现。
+
+## Localization (v1.1.0)
+
+The macOS target packages `en.lproj` and `zh-Hans.lproj` string tables in its own resource bundle. English is the fallback independent of the system locale. Settings persist `app.language`; the native hosting roots observe changes and refresh window titles and menu bar descriptions. Date formatting uses the selected language with the existing local time zone.
+
+`LocalizedMessage` retains message keys and interpolation arguments, allowing pending request statuses to change language without reissuing requests. User posts and source evidence are not localization keys. New AI requests specify the explanation language; the legacy wire field `reason_zh` remains unchanged for provider/schema compatibility. Optional `reasonLanguage` metadata is backward compatible with cached results from v1.0.0. A language switch alone never invalidates probabilities or forces a paid request.
+
+`--check-native-window` also checks packaged catalogs, language persistence in an isolated preferences suite, fallback and interpolation. Preview rendering accepts `--preview-language en` or `--preview-language zh-Hans` without changing user preferences.

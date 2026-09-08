@@ -10,10 +10,16 @@ func directProbabilityDataAndValidation() async throws {
     let stub = StubConnectionTransport([try chatEnvelope(body([0.80, 0.91, 0.95]))])
     let client = ConnectionClient(transport: stub)
     let value = try await client.forecastProbability(posts: posts, history: nil, plan: nil, asOf: testNow,
-        secret: "synthetic-key", model: "synthetic-model", baseURL: "https://provider.example/v1", api: .chatCompletions)
+        secret: "synthetic-key", model: "synthetic-model", baseURL: "https://provider.example/v1", api: .chatCompletions, reasonLanguage: .english)
+    expect(value.reasonLanguage == "en")
+    var legacy = try JSONSerialization.jsonObject(with: JSONEncoder().encode(value)) as! [String: Any]
+    legacy.removeValue(forKey: "reasonLanguage")
+    let legacyForecast = try JSONDecoder().decode(AIProbabilityForecast.self, from: JSONSerialization.data(withJSONObject: legacy))
+    expect(legacyForecast.reasonLanguage == nil && legacyForecast.probabilities == value.probabilities)
     expect(value.probabilities == [0.80, 0.91, 0.95]) // No multiplier, cap, floor or desired-value override.
     let sent = try JSONSerialization.jsonObject(with: await stub.requests[0].httpBody!) as! [String: Any]
     let messages = sent["messages"] as! [[String: String]]
+    expect(messages[0]["content"]!.contains("in English"))
     expect(messages[1]["content"]!.contains(posts[0].text))
     expect(messages[1]["content"]!.contains(testNow.ISO8601Format()))
     expect(!messages[0]["content"]!.contains(posts[0].text))

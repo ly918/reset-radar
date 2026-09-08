@@ -228,12 +228,18 @@ func livePostClassificationDataFlow() async throws {
     }
     let stub = StubConnectionTransport([try chatEnvelope(payload([row]))])
     let result = try await ConnectionClient(transport: stub).analyzePosts(posts, secret: "synthetic-key", model: "provider/model",
-        baseURL: "https://provider.example/v1", api: .chatCompletions)
+        baseURL: "https://provider.example/v1", api: .chatCompletions, reasonLanguage: .english)
+    expect(result[0].reasonLanguage == "en")
+    var legacy = try JSONSerialization.jsonObject(with: JSONEncoder().encode(result[0])) as! [String: Any]
+    legacy.removeValue(forKey: "reasonLanguage")
+    let legacyAnalysis = try JSONDecoder().decode(LivePostAnalysis.self, from: JSONSerialization.data(withJSONObject: legacy))
+    expect(legacyAnalysis.reasonLanguage == nil && legacyAnalysis.result.evidence_quote == result[0].result.evidence_quote)
     expect(result.count == 1 && result[0].contentHash == posts[0].contentHash)
     expect(result[0].baseURL == "https://provider.example/v1")
     let request = await stub.requests[0]
     let body = try JSONSerialization.jsonObject(with: request.httpBody!) as! [String: Any]
     let messages = body["messages"] as! [[String: String]]
+    expect(messages[0]["content"]!.contains("in English"))
     expect(messages[0]["role"] == "system" && messages[1]["role"] == "user")
     expect(!messages[0]["content"]!.contains(text) && messages[1]["content"]!.contains(text))
     expect(body["tools"] == nil && !String(data: request.httpBody!, encoding: .utf8)!.contains("synthetic-key"))

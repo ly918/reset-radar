@@ -17,7 +17,7 @@ struct MenuProbabilityAppearance {
     }
     var value: String { probability.map { "\(Int(($0 * 100).rounded()))%" } ?? "—" }
     var description: String {
-        probability == nil ? "未来 12 小时：尚未评估或结果已过期" : "未来 12 小时重置概率 \(value) · AI 估计，未经校准"
+        probability == nil ? L10n.tr("未来 12 小时：尚未评估或结果已过期") : L10n.tr("未来 12 小时重置概率 \(value) · AI 估计，未经校准")
     }
 }
 

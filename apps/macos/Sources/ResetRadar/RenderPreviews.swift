@@ -17,7 +17,7 @@ import RadarCore
             }
         }
         try render(VStack(alignment: .leading, spacing: 20) {
-            Text("菜单栏图标 · 未来 12 小时").font(.headline)
+            Text(L10n.tr("菜单栏图标 · 未来 12 小时")).font(.headline)
             HStack(spacing: 24) {
                 ForEach(indicatorValues.indices, id: \.self) { index in
                     let item = MenuProbabilityAppearance(indicatorValues[index])
@@ -27,7 +27,7 @@ import RadarCore
                     }.frame(maxWidth: .infinity)
                 }
             }
-            Text("仅展示图标分档，不修改真实预测。过期结果显示未知图标。").font(.caption).foregroundStyle(.secondary)
+            Text(L10n.tr("仅展示图标分档，不修改真实预测。过期结果显示未知图标。")).font(.caption).foregroundStyle(.secondary)
         }.padding(20), to: destination.appendingPathComponent("menu-indicators.png"), width: 500, height: 175, dark: false)
         for (name, scenario, dark) in [
             ("panel-light", DemoScenario.overview, false),
@@ -59,7 +59,7 @@ import RadarCore
                     connections.api = APIProtocol(rawValue: row.api) ?? .responses
                 }
             }
-            connections.snapshot = snapshot; connections.webStatus = "真实公开网页缓存 · " + snapshot.observedAt.ISO8601Format()
+            connections.snapshot = snapshot; connections.webStatus = "真实公开网页缓存 · \(snapshot.observedAt.ISO8601Format())"
             if let data = try? Data(contentsOf: cache.deletingLastPathComponent().appendingPathComponent("ai-probability.json")),
                let value = try? JSONDecoder().decode(AIProbabilityForecast.self, from: data) {
                 connections.probabilityForecast = value

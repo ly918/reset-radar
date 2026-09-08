@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0 — 2026-09-08
+
+- English is the default interface language; Simplified Chinese can be selected in Settings → Language.
+- Language selection persists and updates open windows, menu bar descriptions, dates and runtime messages.
+- New AI explanations follow the selected language; source posts and evidence are unchanged. Existing cached explanations remain readable without extra API requests.
+- Added packaged localization checks, cache compatibility tests, English screenshots and bilingual README files.
+
 ## 1.0.0 — 2026-09-08
 
 - 首个公开 Release，提供 macOS Apple Silicon DMG 与 SHA-256 校验文件。
