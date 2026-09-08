@@ -18,16 +18,34 @@ Reset Radar 是一个独立的 macOS 菜单栏应用：读取公开公告，调�
 - **原生材质**：macOS 26 使用 Clear Liquid Glass 配合可读性衬底；旧系统使用系统模糊。自适应深浅色与降低透明度设置。
 - **本机运行**：密钥存储于 macOS Keychain；配置、帖子缓存和分析结果保存在本机。可启用每小时自动检查。
 
+## 应用截图
+
+主面板：12h 概率居中突出，历史统计与最近帖子分区展示。
+
+<p align="center">
+  <img src="docs/screenshots/main-light.png" width="360" alt="Reset Radar 浅色主面板，包含概率、Reset 历史和最近帖子" />
+  <img src="docs/screenshots/main-dark.png" width="360" alt="Reset Radar 深色主面板，12 小时概率以金色突出" />
+</p>
+
+<details>
+<summary>查看设置页</summary>
+
+<img src="docs/screenshots/settings.png" width="660" alt="Reset Radar 设置页，右上角提供常驻关闭按钮，可配置第三方 AI 服务" />
+
+</details>
+
+截图由 v1.0.0 应用自身视图渲染。主面板为 2026-09-08 的公开帖子与当时模型估计，不是实时概率；设置页使用空白默认配置。静态截图不包含桌面，实际玻璃材质会随窗口后方内容变化。
+
 ## 平台与下载
 
 | 平台 | 当前状态 |
 | --- | --- |
-| macOS · Apple Silicon | 可构建 `.app` 和 `.dmg`；要求 macOS 14+，已在 macOS 26 验证 |
+| macOS · Apple Silicon | 提供 v1.0.0 `.dmg`；要求 macOS 14+，已在 macOS 26 验证 |
 | macOS · Intel | 尚未构建或验证，不提供 Intel 下载包 |
 | Windows | 尚无客户端或 EXE 安装包 |
 | iOS | 尚无客户端 |
 
-[GitHub Releases](https://github.com/ly918/reset-radar/releases) 用于发布安装包和 SHA-256 校验文件。**首次 Release 尚待发布**；当前可按下方步骤从源码构建。
+[下载 v1.0.0 DMG](https://github.com/ly918/reset-radar/releases/download/v1.0.0/Reset-Radar-1.0.0-macOS-arm64.dmg) · [SHA-256 校验文件](https://github.com/ly918/reset-radar/releases/download/v1.0.0/Reset-Radar-1.0.0-macOS-arm64.dmg.sha256) · [Release 说明](https://github.com/ly918/reset-radar/releases/tag/v1.0.0)
 
 DMG 安装：打开镜像，将 **Reset Radar.app** 拖入 **Applications**，再从“应用程序”启动。应用常驻屏幕顶部菜单栏，点击图标打开面板。
 
@@ -70,7 +88,7 @@ AI 分类、连接测试、概率评估共享每日 20 次请求额度（UTC 日
 ./scripts/package-dmg.sh    # DMG、SHA-256、挂载与复制后启动自检
 ```
 
-DMG 输出到 `dist/`。这些成品应上传到 GitHub Release，不提交到 Git 历史。
+DMG 输出到 `dist/`，不提交到 Git 历史。推送与应用版本一致的 `vX.Y.Z` 标签后，GitHub Actions 会执行检查、构建并发布 DMG 与 SHA-256 到 Release。发布说明存放在 `docs/releases/vX.Y.Z.md`。
 
 ```text
 apps/macos/       SwiftUI + AppKit 菜单栏客户端
@@ -83,11 +101,11 @@ data/             社区事实元数据、出处与限制
 docs/brand/       Logo 与应用图标来源
 ```
 
-[架构说明](docs/architecture.md) · [贡献指南](CONTRIBUTING.md) · [变更记录](CHANGELOG.md) · [首发说明草稿](docs/releases/v0.4.0.md)
+[架构说明](docs/architecture.md) · [贡献指南](CONTRIBUTING.md) · [变更记录](CHANGELOG.md) · [v1.0.0 发布说明](docs/releases/v1.0.0.md)
 
 ## 路线图
 
-- 发布首个 macOS 预览 Release，逐步完善签名、公证与自动更新。
+- 完善 Developer ID 签名、公证与自动更新。
 - 完善历史归档更新、数据覆盖核验和概率回测。
 - 改进公开网页获取的稳定性与来源覆盖。
 - 评估 Windows 客户端，再提供独立的 EXE / MSI 安装包。

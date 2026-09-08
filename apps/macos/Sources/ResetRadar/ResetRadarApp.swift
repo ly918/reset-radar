@@ -385,7 +385,7 @@ struct DemoSettingsView: View {
             HStack {
                 Button("三步向导") { openWindow(id: "onboarding"); NSApp.activate(ignoringOtherApps: true) }
                 Button("打开预演面板") { openWindow(id: "rehearsal"); NSApp.activate(ignoringOtherApps: true) }
-                Spacer(); Text("0.4.0 · 开发预览").font(.caption).foregroundStyle(.secondary)
+                Spacer(); Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "开发构建").font(.caption).foregroundStyle(.secondary)
             }
         }.padding(22).frame(width: 560, height: 490)
     }

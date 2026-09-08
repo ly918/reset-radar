@@ -243,7 +243,7 @@ private struct MenuPanelContent: View {
         if present { panel.orderOut(nil) }
         if id == "rehearsal" { windows["onboarding"]?.orderOut(nil) }
         if let window = windows[id] {
-            if present { NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil) }
+            if present { fitOnScreen(window); NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil) }
             return
         }
         let content: AnyView
@@ -267,14 +267,29 @@ private struct MenuPanelContent: View {
         }
         let window = RadarDetailWindow(contentRect: NSRect(origin: .zero, size: size),
                               styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
+        if id == "settings" {
+            window.styleMask.insert(.resizable)
+            window.contentMinSize = NSSize(width: 480, height: 400)
+        }
         window.title = title
         configure(window, content: content, size: size)
         windows[id] = window
         window.center()
+        fitOnScreen(window)
         if present {
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
         }
+    }
+    private func fitOnScreen(_ window: NSWindow, visibleFrame: NSRect? = nil) {
+        guard let visible = visibleFrame ?? window.screen?.visibleFrame ?? NSScreen.main?.visibleFrame else { return }
+        let available = visible.insetBy(dx: 8, dy: 8)
+        var frame = window.frame
+        frame.size.width = min(frame.width, available.width)
+        frame.size.height = min(frame.height, available.height)
+        frame.origin.x = max(available.minX, min(frame.minX, available.maxX - frame.width))
+        frame.origin.y = max(available.minY, min(frame.minY, available.maxY - frame.height))
+        window.setFrame(frame, display: true)
     }
     func closeWindow(_ id: String) {
         windows[id]?.performClose(nil)
@@ -303,15 +318,16 @@ private struct MenuPanelContent: View {
             window.layoutIfNeeded()
             print("PASS: window route \(id), content=\(Int(window.contentView!.bounds.width))x\(Int(window.contentView!.bounds.height))")
         }
-        if let history = windows["reset-history"] {
+        for id in ["settings", "reset-history"] {
+            guard let history = windows[id] else { throw CocoaError(.validationMissingMandatoryProperty) }
             final class CloseReceipt: @unchecked Sendable { var count = 0 }
             let receipt = CloseReceipt()
             let token = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: history, queue: nil) { _ in receipt.count += 1 }
             defer { NotificationCenter.default.removeObserver(token) }
             history.orderBack(nil)
-            print("HISTORY CLOSE: visible=\(history.isVisible), closable=\(history.styleMask.contains(.closable)), close button enabled=\(history.standardWindowButton(.closeButton)?.isEnabled ?? false)")
-            closeWindow("reset-history")
-            print("HISTORY CLOSE: notifications=\(receipt.count), visible=\(history.isVisible)")
+            print("\(id) CLOSE: visible=\(history.isVisible), closable=\(history.styleMask.contains(.closable)), close button enabled=\(history.standardWindowButton(.closeButton)?.isEnabled ?? false)")
+            closeWindow(id)
+            print("\(id) CLOSE: notifications=\(receipt.count), visible=\(history.isVisible)")
             guard receipt.count == 1 else { throw CocoaError(.validationMissingMandatoryProperty) }
             for (keyCode, characters, flags) in [(UInt16(13), "w", NSEvent.ModifierFlags.command), (UInt16(53), "\u{1b}", NSEvent.ModifierFlags())] {
                 history.orderBack(nil)
@@ -321,7 +337,13 @@ private struct MenuPanelContent: View {
                     history.performKeyEquivalent(with: event) else { throw CocoaError(.validationMissingMandatoryProperty) }
             }
             guard receipt.count == 3 else { throw CocoaError(.validationMissingMandatoryProperty) }
-            print("PASS: history close action, Cmd-W and Escape send window close notifications")
+            print("PASS: \(id) close action, Cmd-W and Escape send window close notifications")
+        }
+        if let settings = windows["settings"] {
+            let smallScreen = NSRect(x: 0, y: 0, width: 1024, height: 700)
+            fitOnScreen(settings, visibleFrame: smallScreen)
+            guard smallScreen.contains(settings.frame) else { throw CocoaError(.validationMissingMandatoryProperty) }
+            print("PASS: settings titlebar and close control remain inside a 1024x700 visible screen")
         }
         guard statusItem.button?.action == #selector(togglePanel), statusItem.button?.target === self else {
             throw CocoaError(.validationMissingMandatoryProperty)

@@ -401,16 +401,25 @@ import RadarCore
 struct RadarSettings: View {
     @ObservedObject var model: DemoModel
     @ObservedObject var connections: ConnectionModel
+    @Environment(\.radarCloseWindow) private var closeWindow
     @State private var connectionTab = true
     var body: some View {
         VStack(spacing: 6) {
+            HStack {
+                Text("设置").font(.headline)
+                Spacer()
+                Button("关闭", systemImage: "xmark.circle.fill") { closeWindow(id: "settings") }
+                    .buttonStyle(.plain).help("关闭设置（⌘W / Esc）")
+                    .accessibilityIdentifier("close-settings")
+            }.padding(.bottom, 8)
             Picker("设置分组", selection: $connectionTab) {
                 Text("真实运行").tag(true)
                 Text("离线预演").tag(false)
             }.pickerStyle(.segmented).labelsHidden()
             if connectionTab { ConnectionSettingsView(connections: connections) }
             else { DemoSettingsView(model: model) }
-        }.padding(14).frame(width: 660, height: 780).groupBoxStyle(NativeSectionStyle()).nativeSurface()
+        }.padding(14).frame(maxWidth: .infinity, maxHeight: .infinity)
+            .groupBoxStyle(NativeSectionStyle()).nativeSurface()
     }
 }
 
@@ -487,7 +496,7 @@ struct ConnectionSettingsView: View {
             }
             HStack {
                 Button("离线演示面板") { connections.returnToDemo(); openWindow(id: "rehearsal"); NSApp.activate(ignoringOtherApps: true) }
-                Spacer(); Text("0.4.0 · 开发预览").font(.caption).foregroundStyle(.secondary)
+                Spacer(); Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "开发构建").font(.caption).foregroundStyle(.secondary)
             }
         }.padding(14).onAppear { connections.refreshCredentialStatus() }.onDisappear { secret = "" }
     }

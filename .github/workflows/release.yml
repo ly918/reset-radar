@@ -1,0 +1,42 @@
+name: Release macOS
+on:
+  push:
+    tags: ['v[0-9]*']
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Check core and contracts
+        run: ./scripts/check.sh
+      - name: Build and verify DMG
+        run: ./scripts/package-dmg.sh
+      - name: Publish verified installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' 'build/Reset Radar.app/Contents/Info.plist')
+          test "$RELEASE_TAG" = "v$VERSION"
+          test "$(lipo -archs 'build/Reset Radar.app/Contents/MacOS/ResetRadar')" = arm64
+          NOTES="docs/releases/$RELEASE_TAG.md"
+          test -f "$NOTES"
+          cd dist
+          DMG="Reset-Radar-${VERSION}-macOS-arm64.dmg"
+          shasum -a 256 -c "$DMG.sha256"
+          gh release create "$RELEASE_TAG" "$DMG" "$DMG.sha256" \
+            --verify-tag --title "Reset Radar $RELEASE_TAG" \
+            --notes-file "../$NOTES" --latest
