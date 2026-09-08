@@ -1,0 +1,9 @@
+{
+  "dataset_version": "unverified-empty-v1",
+  "synthetic": false,
+  "events": [],
+  "coverage": [],
+  "unresolved_gaps": [
+    "No verified continuous historical coverage has been established."
+  ]
+}

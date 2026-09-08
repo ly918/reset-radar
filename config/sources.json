@@ -1,0 +1,15 @@
+{
+  "version": "rehearsal.1",
+  "candidate_handle": "thsottiaux",
+  "author_id": null,
+  "identity_status": "unverified",
+  "enabled": false,
+  "public_web": {
+    "url": "https://x.com/thsottiaux",
+    "status": "two_manual_reads_passed",
+    "page_reported_author_id": "1953337039510003712",
+    "identity_independently_verified": false,
+    "continuous_coverage_verified": false,
+    "validated_on": "2026-09-07"
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:reset-radar:signal-analysis:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "post_id",
+    "event_type",
+    "target_type",
+    "signal_strength",
+    "temporal_status",
+    "classification_confidence",
+    "evidence_quote",
+    "time_expression",
+    "relative_window_hours",
+    "context_missing",
+    "reason_zh"
+  ],
+  "properties": {
+    "post_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "event_type": {
+      "enum": [
+        "unrelated",
+        "signal",
+        "planned_reset",
+        "reset_claim",
+        "banked_credit",
+        "targeted_compensation",
+        "unknown"
+      ]
+    },
+    "target_type": {
+      "enum": [
+        "global_reset",
+        "banked_credit",
+        "targeted_compensation",
+        "unknown"
+      ]
+    },
+    "signal_strength": {
+      "enum": [
+        "none",
+        "weak",
+        "moderate",
+        "strong"
+      ]
+    },
+    "temporal_status": {
+      "enum": [
+        "past",
+        "present",
+        "future",
+        "ambiguous"
+      ]
+    },
+    "classification_confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "evidence_quote": {
+      "type": "string",
+      "minLength": 1
+    },
+    "time_expression": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "relative_window_hours": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0
+          },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      ]
+    },
+    "context_missing": {
+      "type": "boolean"
+    },
+    "reason_zh": {
+      "type": "string"
+    }
+  }
+}

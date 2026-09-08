@@ -1,0 +1,20 @@
+{
+  "app_version": "0.4.0",
+  "algorithm_version": "survival-6h-v1-rehearsal.1",
+  "mode": "real_local",
+  "model_id": null,
+  "prompt_version": "signal-classifier-v1.1-exact-time",
+  "schema_version": "signal-analysis-v1",
+  "bin_hours": 6,
+  "smoothing_kappa": 5,
+  "minimum_intervals": 20,
+  "minimum_survivors": 5,
+  "signal_half_life_hours": 12,
+  "signal_max_age_hours": 48,
+  "watch_threshold": 0.75,
+  "online_enabled": true,
+  "preferred_data_source": "public_web_experimental",
+  "manual_connections_available": true,
+  "history_dataset": "community-archive-2026-09-07-v1",
+  "monitor_interval_seconds": 3600
+}

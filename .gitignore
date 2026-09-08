@@ -1,0 +1,30 @@
+# Swift / macOS build products
+.build/
+.swiftpm/
+/build/
+/dist/
+.DS_Store
+*.xcuserstate
+xcuserdata/
+*.xcresult
+*.dmg
+*.icns.tmp
+
+# Local credentials, caches and diagnostics
+.env
+.env.*
+!.env.example
+*.sqlite*
+*.db*
+*.log
+*.pem
+*.key
+
+# Internal planning and local rehearsal evidence stay on this computer.
+/PRD_V1.md
+/TECHNICAL_REHEARSAL_V1.md
+/docs/*
+!/docs/architecture.md
+!/docs/privacy.md
+!/docs/releases/
+!/docs/brand/
