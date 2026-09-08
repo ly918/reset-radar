@@ -29,3 +29,7 @@ xcuserdata/
 !/docs/releases/
 !/docs/brand/
 !/docs/screenshots/
+/docs/screenshots/*
+!/docs/screenshots/main-light.png
+!/docs/screenshots/main-dark.png
+!/docs/screenshots/settings.png
