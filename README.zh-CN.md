@@ -37,18 +37,18 @@ Reset Radar 是一个独立的 macOS 菜单栏应用：读取公开公告，调�
 
 </details>
 
-截图由 v1.1.0 应用自身视图渲染。主面板为 2026-09-08 的公开帖子与当时模型估计，不是实时概率；设置页使用空白默认配置。静态截图不包含桌面，实际玻璃材质会随窗口后方内容变化。
+截图由应用自身视图渲染。主面板为 2026-09-08 的公开帖子与当时模型估计，不是实时概率；设置页使用空白默认配置。静态截图不包含桌面，实际玻璃材质会随窗口后方内容变化。
 
 ## 平台与下载
 
 | 平台 | 当前状态 |
 | --- | --- |
-| macOS · Apple Silicon | 提供 v1.1.0 `.dmg`；要求 macOS 14+，已在 macOS 26 验证 |
+| macOS · Apple Silicon | 提供 v1.1.1 `.dmg`；要求 macOS 14+，已在 macOS 26 验证 |
 | macOS · Intel | 尚未构建或验证，不提供 Intel 下载包 |
 | Windows | 尚无客户端或 EXE 安装包 |
 | iOS | 尚无客户端 |
 
-[下载 v1.1.0 DMG](https://github.com/ly918/reset-radar/releases/download/v1.1.0/Reset-Radar-1.1.0-macOS-arm64.dmg) · [SHA-256 校验文件](https://github.com/ly918/reset-radar/releases/download/v1.1.0/Reset-Radar-1.1.0-macOS-arm64.dmg.sha256) · [Release 说明](https://github.com/ly918/reset-radar/releases/tag/v1.1.0)
+[下载 v1.1.1 DMG](https://github.com/ly918/reset-radar/releases/download/v1.1.1/Reset-Radar-1.1.1-macOS-arm64.dmg) · [SHA-256 校验文件](https://github.com/ly918/reset-radar/releases/download/v1.1.1/Reset-Radar-1.1.1-macOS-arm64.dmg.sha256) · [Release 说明](https://github.com/ly918/reset-radar/releases/tag/v1.1.1)
 
 DMG 安装：打开镜像，将 **Reset Radar.app** 拖入 **Applications**，再从“应用程序”启动。应用常驻屏幕顶部菜单栏，点击图标打开面板。
 
@@ -106,7 +106,7 @@ data/             社区事实元数据、出处与限制
 docs/brand/       Logo 与应用图标来源
 ```
 
-[架构说明](docs/architecture.md) · [贡献指南](CONTRIBUTING.md) · [变更记录](CHANGELOG.md) · [v1.1.0 发布说明](docs/releases/v1.1.0.md)
+[架构说明](docs/architecture.md) · [贡献指南](CONTRIBUTING.md) · [变更记录](CHANGELOG.md) · [v1.1.1 发布说明](docs/releases/v1.1.1.md)
 
 ## 路线图
 

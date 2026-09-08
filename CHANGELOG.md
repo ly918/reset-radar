@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.0 — 2026-09-08
+## 1.1.1 — 2026-09-08
 
 - English is the default interface language; Simplified Chinese can be selected in Settings → Language.
 - Language selection persists and updates open windows, menu bar descriptions, dates and runtime messages.

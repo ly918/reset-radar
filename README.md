@@ -13,7 +13,7 @@ Reset Radar is an independent macOS menu bar app. It reads public announcements,
 
 ## Download
 
-[Download v1.1.0 DMG](https://github.com/ly918/reset-radar/releases/download/v1.1.0/Reset-Radar-1.1.0-macOS-arm64.dmg) · [SHA-256 checksum](https://github.com/ly918/reset-radar/releases/download/v1.1.0/Reset-Radar-1.1.0-macOS-arm64.dmg.sha256) · [Release notes](https://github.com/ly918/reset-radar/releases/tag/v1.1.0)
+[Download v1.1.1 DMG](https://github.com/ly918/reset-radar/releases/download/v1.1.1/Reset-Radar-1.1.1-macOS-arm64.dmg) · [SHA-256 checksum](https://github.com/ly918/reset-radar/releases/download/v1.1.1/Reset-Radar-1.1.1-macOS-arm64.dmg.sha256) · [Release notes](https://github.com/ly918/reset-radar/releases/tag/v1.1.1)
 
 Requires **Apple Silicon and macOS 14+**. Open the DMG, drag **Reset Radar.app** into **Applications**, then launch it and click its menu bar icon. Intel, Windows and iOS builds are not available.
 
@@ -43,7 +43,7 @@ The app is currently ad-hoc signed, without Apple Developer ID signing or notari
 
 </details>
 
-Rendered from the v1.1.0 application's own views. The main panel shows public posts and model estimates saved on September 8, 2026, not live probabilities. Settings use an empty default configuration. Static previews exclude the desktop; actual glass appearance depends on the content behind the window.
+Rendered from the application's own views. The main panel shows public posts and model estimates saved on September 8, 2026, not live probabilities. Settings use an empty default configuration. Static previews exclude the desktop; actual glass appearance depends on the content behind the window.
 
 ## Setup
 
