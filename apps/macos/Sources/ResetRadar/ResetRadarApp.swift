@@ -167,7 +167,7 @@ enum DemoScenario: String, CaseIterable, Identifiable {
         windows = controller
         if checkSurface {
             do { try controller.validateSurface(); exit(0) }
-            catch { fputs("Native window validation failed\n", stderr); exit(1) }
+            catch { fputs("::error::Native window validation failed: \(error.localizedDescription)\n", stderr); exit(1) }
         }
         if args.contains("--start-monitoring") {
             Task { await connections.authorizeAndStartMonitoring(forceAnalysis: args.contains("--reanalyze-latest")) }

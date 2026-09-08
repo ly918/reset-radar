@@ -58,7 +58,11 @@ enum L10n {
         return Bundle.module
     }()
     static func bundle(for language: AppLanguage) -> Bundle {
-        guard let path = resources.path(forResource: language.rawValue, ofType: "lproj"), let bundle = Bundle(path: path) else { return resources }
+        // SwiftPM lowercases lproj directory names. Resolve the actual directory
+        // rather than relying on a case-insensitive development filesystem.
+        let folders = (try? FileManager.default.contentsOfDirectory(at: resources.bundleURL, includingPropertiesForKeys: nil)) ?? []
+        guard let url = folders.first(where: { $0.lastPathComponent.lowercased() == language.rawValue.lowercased() + ".lproj" }),
+              let bundle = Bundle(url: url) else { return resources }
         return bundle
     }
     static func key(_ key: String, language: AppLanguage = L10n.language) -> String {
